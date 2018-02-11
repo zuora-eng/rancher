@@ -95,6 +95,21 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterAlertList{},
 		&ProjectAlert{},
 		&ProjectAlertList{},
+<<<<<<< HEAD
+=======
+		&SourceCodeCredential{},
+		&SourceCodeCredentialList{},
+		&ClusterPipeline{},
+		&ClusterPipelineList{},
+		&Pipeline{},
+		&PipelineList{},
+		&PipelineExecution{},
+		&PipelineExecutionList{},
+		&SourceCodeRepository{},
+		&SourceCodeRepositoryList{},
+		&PipelineExecutionLog{},
+		&PipelineExecutionLogList{},
+>>>>>>> update vendor
 	)
 	return nil
 }
