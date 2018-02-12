@@ -51,6 +51,7 @@ type ManagementContext struct {
 
 	Management managementv3.Interface
 	RBAC       rbacv1.Interface
+	Project    projectv3.Interface
 	Core       corev1.Interface
 }
 
@@ -58,6 +59,7 @@ func (c *ManagementContext) controllers() []controller.Starter {
 	return []controller.Starter{
 		c.Management,
 		c.RBAC,
+		c.Project,
 		c.Core,
 		c.Project,
 	}
@@ -140,6 +142,10 @@ func NewManagementContext(config rest.Config) (*ManagementContext, error) {
 		return nil, err
 	}
 
+	context.Project, err = projectv3.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	context.K8sClient, err = kubernetes.NewForConfig(&config)
 	if err != nil {
 		return nil, err
