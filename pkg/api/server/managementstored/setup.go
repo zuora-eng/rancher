@@ -62,6 +62,12 @@ func Setup(ctx context.Context, management *config.ManagementContext) error {
 		client.SettingType,
 		client.TemplateType,
 		client.TemplateVersionType,
+		client.ClusterPipelineType,
+		client.PipelineType,
+		client.PipelineExecutionType,
+		client.PipelineExecutionLogType,
+		client.SourceCodeCredentialType,
+		client.SourceCodeRepositoryType,
 		client.TokenType,
 		client.UserType)
 	createCrd(ctx, wg, factory, schemas, &projectschema.Version,

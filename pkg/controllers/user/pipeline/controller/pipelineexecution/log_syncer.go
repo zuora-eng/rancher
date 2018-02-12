@@ -40,6 +40,9 @@ func (s *ExecutionLogSyncer) syncLogs() {
 	if err != nil {
 		logrus.Errorf("Error listing PipelineExecutionLogs - %v", err)
 	}
+	if len(Logs) < 1 {
+		return
+	}
 	url, err := utils.GetJenkinsURL(s.nodeLister, s.serviceLister)
 	if err != nil {
 		logrus.Errorf("Error get Jenkins url - %v", err)
