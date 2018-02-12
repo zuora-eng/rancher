@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rancher/norman/types"
-	corev1 "github.com/rancher/types/apis/core/v1"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -103,7 +102,9 @@ func UpdateEndpoint(apiContext *types.APIContext) error {
 }
 
 //FIXME proper way to connect to Jenkins in cluster
-func GetJenkinsURL(nodeLister corev1.NodeLister, serviceLister corev1.ServiceLister) (string, error) {
+func GetJenkinsURL(cluster *config.UserContext) (string, error) {
+	nodeLister := cluster.Management.Core.Nodes("").Controller().Lister()
+	serviceLister := cluster.Management.Core.Services("").Controller().Lister()
 	nodes, err := nodeLister.List("", labels.NewSelector())
 	if err != nil {
 		return "", err

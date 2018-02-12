@@ -1,6 +1,7 @@
 package clusterpipeline
 
 import (
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/engine/jenkins"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -12,16 +13,14 @@ const (
 )
 
 func getSecret() *corev1.Secret {
-	//TODO be random
-	randomToken := "admin"
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "cattle-pipeline",
 			Name:      "jenkins",
 		},
 		Data: map[string][]byte{
-			"jenkins-admin-password": []byte(randomToken),
-			"jenkins-admin-user":     []byte("admin"),
+			"jenkins-admin-password": []byte(jenkins.JENKINS_DEFAULT_TOKEN),
+			"jenkins-admin-user":     []byte(jenkins.JENKINS_DEFAULT_USER),
 		},
 	}
 }

@@ -41,11 +41,7 @@ func (s *ExecutionStateSyncer) syncState() {
 	if len(executions) < 1 {
 		return
 	}
-	url, err := utils.GetJenkinsURL(s.nodeLister, s.serviceLister)
-	if err != nil {
-		logrus.Errorf("Error get Jenkins url - %v", err)
-	}
-	pipelineEngine, err := engine.New(s.cluster, url)
+	pipelineEngine, err := engine.New(s.cluster)
 	if err != nil {
 		logrus.Errorf("Error get Jenkins engine - %v", err)
 	}

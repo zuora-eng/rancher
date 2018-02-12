@@ -2,6 +2,7 @@ package engine
 
 import (
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/engine/jenkins"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 )
@@ -15,7 +16,12 @@ type PipelineEngine interface {
 	SyncExecution(execution *v3.PipelineExecution) (bool, error)
 }
 
-func New(cluster *config.UserContext, url string) (PipelineEngine, error) {
+func New(cluster *config.UserContext) (PipelineEngine, error) {
+
+	url, err := utils.GetJenkinsURL(cluster)
+	if err != nil {
+		return nil, err
+	}
 	user := "admin"
 	token := "admin"
 	client, err := jenkins.New(url, user, token)

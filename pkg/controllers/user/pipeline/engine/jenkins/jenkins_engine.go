@@ -73,7 +73,7 @@ func (j JenkinsEngine) UpdatePipelineJob(pipeline *v3.Pipeline) error {
 }
 
 func (j JenkinsEngine) RerunHistory(history *v3.PipelineExecution) error {
-	return j.RunPipeline(&history.Spec.Pipeline, TriggerTypeManual)
+	return j.RunPipeline(&history.Spec.Pipeline, utils.TriggerTypeUser)
 }
 
 func (j JenkinsEngine) StopHistory(execution *v3.PipelineExecution) error {

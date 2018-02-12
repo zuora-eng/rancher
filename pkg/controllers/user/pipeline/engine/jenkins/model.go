@@ -12,9 +12,10 @@ const (
 	JENKINS_JOB_PREFIX     = "Rancher_Pipeline_"
 )
 
-const TriggerTypeCron = "cron"
-const TriggerTypeManual = "manual"
-const TriggerTypeWebhook = "webhook"
+var JENKINS_DEFAULT_USER = "admin"
+
+//TODO be random
+var JENKINS_DEFAULT_TOKEN = "admin"
 
 type PipelineJob struct {
 	XMLName    xml.Name   `xml:"flow-definition"`
