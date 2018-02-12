@@ -1,21 +1,59 @@
-package controller
+package pipelineexecution
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/rancher/rancher/pkg/pipeline/engine"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/engine"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type PipelineHistoryLifecycle struct {
-	cluster *config.ClusterContext
+type PipelineExecutionLifecycle struct {
+	cluster *config.UserContext
 }
 
-func (l *PipelineHistoryLifecycle) Create(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
+func Register(ctx context.Context, cluster *config.UserContext) {
+	pipelineExecutions := cluster.Management.Management.PipelineExecutions("")
+	pipelineExecutionLister := pipelineExecutions.Controller().Lister()
+	pipelineExecutionLogs := cluster.Management.Management.PipelineExecutionLogs("")
+	pipelineExecutionLogLister := pipelineExecutionLogs.Controller().Lister()
 
+	nodeLister := cluster.Core.Nodes("").Controller().Lister()
+	serviceLister := cluster.Core.Services("").Controller().Lister()
+
+	pipelineExecutionLifecycle := &PipelineExecutionLifecycle{
+		cluster: cluster,
+	}
+	stateSyncer := &ExecutionStateSyncer{
+		pipelineExecutionLister: pipelineExecutionLister,
+		pipelineExecutions:      pipelineExecutions,
+		nodeLister:              nodeLister,
+		serviceLister:           serviceLister,
+	}
+	logSyncer := &ExecutionLogSyncer{
+		pipelineExecutionLister:    pipelineExecutionLister,
+		pipelineExecutionLogLister: pipelineExecutionLogLister,
+		pipelineExecutionLogs:      pipelineExecutionLogs,
+		nodeLister:                 nodeLister,
+		serviceLister:              serviceLister,
+	}
+
+	pipelineExecutions.AddLifecycle(pipelineExecutionLifecycle.GetName(), pipelineExecutionLifecycle)
+
+	go stateSyncer.sync(ctx, syncStateInterval)
+	go logSyncer.sync(ctx, syncLogInterval)
+
+}
+
+func (l *PipelineExecutionLifecycle) Create(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
+
+	if obj.Status.State != utils.StateWaiting {
+		return obj, nil
+	}
 	url, err := l.getJenkinsURL()
 	if err != nil {
 		logrus.Errorf("Error connect to Jenkins - %v", err)
@@ -32,7 +70,7 @@ func (l *PipelineHistoryLifecycle) Create(obj *v3.PipelineExecution) (*v3.Pipeli
 	}
 	return obj, nil
 }
-func (l *PipelineHistoryLifecycle) errorHistory(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
+func (l *PipelineExecutionLifecycle) errorHistory(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
 	obj.Status.State = "error"
 	if _, err := l.cluster.Management.Management.PipelineExecutions(obj.Namespace).Update(obj); err != nil {
 		logrus.Error(err)
@@ -41,16 +79,16 @@ func (l *PipelineHistoryLifecycle) errorHistory(obj *v3.PipelineExecution) (*v3.
 	return obj, nil
 }
 
-func (l *PipelineHistoryLifecycle) Updated(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
+func (l *PipelineExecutionLifecycle) Updated(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
 	return obj, nil
 }
 
-func (l *PipelineHistoryLifecycle) Remove(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
+func (l *PipelineExecutionLifecycle) Remove(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
 	return obj, nil
 }
 
 //FIXME proper way to connect to Jenkins in cluster
-func (l *PipelineHistoryLifecycle) getJenkinsURL() (string, error) {
+func (l *PipelineExecutionLifecycle) getJenkinsURL() (string, error) {
 
 	nodes, err := l.cluster.Core.Nodes("").List(metav1.ListOptions{})
 	if err != nil {
@@ -78,4 +116,8 @@ func (l *PipelineHistoryLifecycle) getJenkinsURL() (string, error) {
 		}
 	}
 	return fmt.Sprintf("http://%s:%d", host, svcport), nil
+}
+
+func (s *PipelineExecutionLifecycle) GetName() string {
+	return "pipeline-execution-controller"
 }

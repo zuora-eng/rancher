@@ -2,8 +2,7 @@ package drivers
 
 import (
 	"github.com/pkg/errors"
-	"github.com/rancher/rancher/pkg/pipeline/utils"
-	"github.com/rancher/types/apis/management.cattle.io/v3"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,35 +46,35 @@ func (s SyncExecutionDriver) Execute(req *http.Request) (int, error) {
 	}
 	event := req.FormValue("event")
 	curTime := time.Now().String()
-	if event == v3.StateBuilding {
+	if event == utils.StateBuilding {
 		//TODO check
-		execution.Status.Stages[stage].Steps[step].State = v3.StateBuilding
+		execution.Status.Stages[stage].Steps[step].State = utils.StateBuilding
 		execution.Status.Stages[stage].Steps[step].Started = curTime
 		if execution.Status.Stages[stage].Started == "" {
-			execution.Status.Stages[stage].State = v3.StateBuilding
+			execution.Status.Stages[stage].State = utils.StateBuilding
 			execution.Status.Stages[stage].Started = curTime
 		}
 		if execution.Status.Started == "" {
-			execution.Status.State = v3.StateBuilding
+			execution.Status.State = utils.StateBuilding
 			execution.Status.Started = curTime
 		}
-	} else if event == v3.StateSuccess {
-		execution.Status.Stages[stage].Steps[step].State = v3.StateSuccess
+	} else if event == utils.StateSuccess {
+		execution.Status.Stages[stage].Steps[step].State = utils.StateSuccess
 		execution.Status.Stages[stage].Steps[step].Ended = curTime
 		if utils.IsStageSuccess(execution.Status.Stages[stage]) {
-			execution.Status.Stages[stage].State = v3.StateSuccess
+			execution.Status.Stages[stage].State = utils.StateSuccess
 			execution.Status.Stages[stage].Ended = curTime
 			if stage == len(execution.Status.Stages) {
-				execution.Status.State = v3.StateSuccess
+				execution.Status.State = utils.StateSuccess
 				execution.Status.Ended = curTime
 			}
 		}
-	} else if event == v3.StateFail {
-		execution.Status.Stages[stage].Steps[step].State = v3.StateFail
+	} else if event == utils.StateFail {
+		execution.Status.Stages[stage].Steps[step].State = utils.StateFail
 		execution.Status.Stages[stage].Steps[step].Ended = curTime
-		execution.Status.Stages[stage].State = v3.StateFail
+		execution.Status.Stages[stage].State = utils.StateFail
 		execution.Status.Stages[stage].Ended = curTime
-		execution.Status.State = v3.StateFail
+		execution.Status.State = utils.StateFail
 		execution.Status.Ended = curTime
 
 	} else {

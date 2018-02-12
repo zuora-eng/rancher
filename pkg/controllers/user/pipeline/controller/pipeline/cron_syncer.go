@@ -1,13 +1,12 @@
-package cron_syncer
+package pipeline
 
 import (
 	"context"
 	"github.com/pkg/errors"
-	"github.com/rancher/rancher/pkg/cluster/utils"
-	pipelineutils "github.com/rancher/rancher/pkg/pipeline/utils"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
+	"github.com/rancher/rancher/pkg/ticker"
 	"github.com/rancher/types/apis/core/v1"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
-	"github.com/rancher/types/config"
 	"github.com/robfig/cron"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
@@ -27,27 +26,8 @@ type CronSyncer struct {
 	serviceLister           v1.ServiceLister
 }
 
-func Register(ctx context.Context, cluster *config.ClusterContext) {
-	pipelines := cluster.Management.Management.Pipelines("")
-	pipelineLister := pipelines.Controller().Lister()
-	pipelineExecutions := cluster.Management.Management.PipelineExecutions("")
-	pipelineExecutionLister := cluster.Management.Management.PipelineExecutions("").Controller().Lister()
-
-	nodeLister := cluster.Core.Nodes("").Controller().Lister()
-	serviceLister := cluster.Core.Services("").Controller().Lister()
-	s := &CronSyncer{
-		pipelineLister:          pipelineLister,
-		pipelines:               pipelines,
-		pipelineExecutionLister: pipelineExecutionLister,
-		pipelineExecutions:      pipelineExecutions,
-		nodeLister:              nodeLister,
-		serviceLister:           serviceLister,
-	}
-	go s.sync(ctx, syncInterval)
-}
-
 func (s *CronSyncer) sync(ctx context.Context, syncInterval time.Duration) {
-	for range utils.TickerContext(ctx, syncInterval) {
+	for range ticker.Context(ctx, syncInterval) {
 		logrus.Debugf("Start sync pipeline execution log")
 		s.syncCron()
 		logrus.Debugf("Sync pipeline execution log complete")
@@ -100,7 +80,7 @@ func (s *CronSyncer) checkCron(pipeline *v3.Pipeline) {
 			return
 		}
 		pipeline.Status.NextStart = nextStart
-		if err := pipelineutils.RunPipeline(s.pipelines, s.pipelineExecutions, pipeline, v3.TriggerTypeCron); err != nil {
+		if err := utils.RunPipeline(s.pipelines, s.pipelineExecutions, pipeline, utils.TriggerTypeCron); err != nil {
 			logrus.Errorf("Error run pipeline - %v", err)
 			return
 		}

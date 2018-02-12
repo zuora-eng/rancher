@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"github.com/rancher/rancher/pkg/pipeline/utils"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
@@ -76,13 +76,13 @@ func (g GithubDriver) Execute(req *http.Request) (int, error) {
 
 	//Generate a new pipeline execution
 	historyClient := g.Management.Management.PipelineExecutions(ns)
-	history := utils.InitHistory(pipeline, v3.TriggerTypeWebhook)
+	history := utils.InitHistory(pipeline, utils.TriggerTypeWebhook)
 	history, err = historyClient.Create(history)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
 	pipeline.Status.NextRun++
-	pipeline.Status.LastExecutionId = history.Name
+	pipeline.Status.LastExecutionID = history.Name
 	pipeline.Status.LastStarted = time.Now().String()
 
 	_, err = pipelineClient.Update(pipeline)

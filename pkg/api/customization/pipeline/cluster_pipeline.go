@@ -5,8 +5,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rancher/norman/api/access"
 	"github.com/rancher/norman/types"
-	"github.com/rancher/rancher/pkg/pipeline/remote/booter"
-	"github.com/rancher/rancher/pkg/pipeline/utils"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
@@ -100,17 +100,17 @@ func (h *ClusterPipelineHandler) authapp(apiContext *types.APIContext) error {
 	}
 
 	if authAppInput.Type == "github" {
-		clusterPipeline.Spec.GithubConfig = &v3.GithubConfig{
+		clusterPipeline.Spec.GithubConfig = &v3.GithubClusterConfig{
 			TLS:          authAppInput.TLS,
 			Host:         authAppInput.Host,
-			ClientId:     authAppInput.ClientId,
+			ClientID:     authAppInput.ClientID,
 			ClientSecret: authAppInput.ClientSecret,
-			RedirectUrl:  authAppInput.RedirectUrl,
+			RedirectURL:  authAppInput.RedirectURL,
 		}
 	}
 	//oauth and add user
 	userName := apiContext.Request.Header.Get("Impersonate-User")
-	if _, err := h.auth_add_account(clusterPipeline, authAppInput.Type, userName, authAppInput.RedirectUrl, authAppInput.Code); err != nil {
+	if _, err := h.auth_add_account(clusterPipeline, authAppInput.Type, userName, authAppInput.RedirectURL, authAppInput.Code); err != nil {
 		return err
 	}
 	//update cluster pipeline config
@@ -156,8 +156,8 @@ func (h *ClusterPipelineHandler) authuser(apiContext *types.APIContext) error {
 
 	//oauth and add user
 	userName := apiContext.Request.Header.Get("Impersonate-User")
-	logrus.Debugf("try auth with %v,%v,%v,%v,%v", clusterPipeline, authUserInput.Type, userName, authUserInput.RedirectUrl, authUserInput.Code)
-	account, err := h.auth_add_account(clusterPipeline, authUserInput.Type, userName, authUserInput.RedirectUrl, authUserInput.Code)
+	logrus.Debugf("try auth with %v,%v,%v,%v,%v", clusterPipeline, authUserInput.Type, userName, authUserInput.RedirectURL, authUserInput.Code)
+	account, err := h.auth_add_account(clusterPipeline, authUserInput.Type, userName, authUserInput.RedirectURL, authUserInput.Code)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (h *ClusterPipelineHandler) auth_add_account(clusterPipeline *v3.ClusterPip
 		return nil, errors.New("unauth")
 	}
 
-	remote, err := booter.New(*clusterPipeline, remoteType)
+	remote, err := remote.New(*clusterPipeline, remoteType)
 	if err != nil {
 		return nil, err
 	}

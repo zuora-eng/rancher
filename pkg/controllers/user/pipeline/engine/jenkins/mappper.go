@@ -3,7 +3,7 @@ package jenkins
 import (
 	"bytes"
 	"fmt"
-	"github.com/rancher/rancher/pkg/pipeline/utils"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 )
 
@@ -39,7 +39,7 @@ func convertStep(pipeline *v3.Pipeline, stageOrdinal int, stepOrdinal int) strin
 		} else if branchCondition == "all" {
 			branch = "*"
 		}
-		stepContent = fmt.Sprintf("git url: '%s', branch: '%s', credentialsId: '%s'", step.SourceCodeConfig.Url, branch, step.SourceCodeConfig.SourceCodeCredentialName)
+		stepContent = fmt.Sprintf("git url: '%s', branch: '%s', credentialsId: '%s'", step.SourceCodeConfig.URL, branch, step.SourceCodeConfig.SourceCodeCredentialName)
 	} else if step.RunScriptConfig != nil {
 		stepContent = fmt.Sprintf(`sh """%s"""`, step.RunScriptConfig.ShellScript)
 	} else if step.PublishImageConfig != nil {
@@ -128,7 +128,7 @@ func preStepScript(pipeline *v3.Pipeline, stage int, step int) string {
 	}
 	executionId := fmt.Sprintf("%s-%d", pipeline.Name, pipeline.Status.NextRun)
 	skel := `sh 'curl -k -d "executionId=%s&stage=%d&step=%d&event=%s&token=%s" -H X-PipelineExecution-Notify:1 %s'`
-	script := fmt.Sprintf(skel, executionId, stage, step, v3.StateBuilding, pipeline.Status.Token, utils.CI_ENDPOINT)
+	script := fmt.Sprintf(skel, executionId, stage, step, utils.StateBuilding, pipeline.Status.Token, utils.CI_ENDPOINT)
 	return script
 }
 
@@ -138,8 +138,8 @@ func postStepScript(pipeline *v3.Pipeline, stage int, step int) string {
 	}
 	executionId := fmt.Sprintf("%s-%d", pipeline.Name, pipeline.Status.NextRun)
 	skel := `sh 'curl -k -d "executionId=%s&stage=%d&step=%d&event=%s&token=%s" -H X-PipelineExecution-Notify:1 %s'`
-	successScript := fmt.Sprintf(skel, executionId, stage, step, v3.StateSuccess, pipeline.Status.Token, utils.CI_ENDPOINT)
-	failScript := fmt.Sprintf(skel, executionId, stage, step, v3.StateFail, pipeline.Status.Token, utils.CI_ENDPOINT)
+	successScript := fmt.Sprintf(skel, executionId, stage, step, utils.StateSuccess, pipeline.Status.Token, utils.CI_ENDPOINT)
+	failScript := fmt.Sprintf(skel, executionId, stage, step, utils.StateFail, pipeline.Status.Token, utils.CI_ENDPOINT)
 	//abortScript := fmt.Sprintf(skel, drivers.EXECUTION_NOTIFY_HEADER, executionId, stage, step, v3.StateAbort, pipeline.Status.Token, pipeline2.CI_ENDPOINT)
 
 	postSkel := `post {

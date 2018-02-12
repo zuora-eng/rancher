@@ -1,4 +1,4 @@
-package cluster_pipeline_syncer
+package clusterpipeline
 
 import (
 	"github.com/pkg/errors"

@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"github.com/rancher/rancher/pkg/pipeline/remote"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote/model"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
-	"github.com/satori/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/tomnomnom/linkheader"
 	"golang.org/x/oauth2"
 	"io"
 	"io/ioutil"
 	"net/http"
-	//"strings"
+	"strings"
 )
 
 const (
@@ -32,7 +31,7 @@ type client struct {
 	API          string
 }
 
-func New(pipeline v3.ClusterPipeline) (remote.Remote, error) {
+func New(pipeline v3.ClusterPipeline) (model.Remote, error) {
 	if pipeline.Spec.GithubConfig == nil {
 		return nil, errors.New("github is not configured")
 	}
@@ -188,7 +187,7 @@ func convertAccount(gitaccount *github.User) *v3.SourceCodeCredential {
 	}
 	if gitaccount.Name != nil {
 		account.Spec.DisplayName = *gitaccount.Name
-		account.Name = uuid.NewV4().String() //"github-" + strings.ToLower(*gitaccount.Login)
+		account.Name = strings.ToLower(*gitaccount.Login)
 	}
 	return account
 

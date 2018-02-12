@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/rancher/rancher/pkg/pipeline/handler/drivers"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/handler/drivers"
 	"github.com/rancher/types/config"
 	"net/http"
 )
@@ -15,5 +15,4 @@ type Driver interface {
 func RegisterDrivers(Management *config.ManagementContext) {
 	Drivers = map[string]Driver{}
 	Drivers[drivers.GITHUB_WEBHOOK_HEADER] = drivers.GithubDriver{Management: Management}
-	Drivers[drivers.EXECUTION_NOTIFY_HEADER] = drivers.SyncExecutionDriver{Management: Management}
 }

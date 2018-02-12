@@ -1,27 +1,16 @@
 package remote
 
 import (
+	"errors"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote/github"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote/model"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
-	"net/http"
 )
 
-type Remote interface {
-	Type() string
-
-	CanLogin() bool
-
-	CanRepos() bool
-
-	CanHook() bool
-
-	//Login handle oauth login
-	Login(redirectURL string, code string) (*v3.SourceCodeCredential, error)
-
-	Repos(account *v3.SourceCodeCredential) ([]v3.SourceCodeRepository, error)
-
-	CreateHook(pipeline *v3.Pipeline, accessToken string, hookUrl string) (string, error)
-
-	DeleteHook(pipeline *v3.Pipeline, accessToken string) error
-
-	ParseHook(r *http.Request)
+func New(pipeline v3.ClusterPipeline, remoteType string) (model.Remote, error) {
+	switch remoteType {
+	case "github":
+		return github.New(pipeline)
+	}
+	return nil, errors.New("unsupported remote type")
 }

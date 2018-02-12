@@ -13,6 +13,7 @@ import (
 	"github.com/rancher/rancher/pkg/api/customization/catalog"
 	apicluster "github.com/rancher/rancher/pkg/api/customization/cluster"
 	"github.com/rancher/rancher/pkg/api/customization/machine"
+	"github.com/rancher/rancher/pkg/api/customization/pipeline"
 	"github.com/rancher/rancher/pkg/api/customization/setting"
 	"github.com/rancher/rancher/pkg/api/store/cert"
 	"github.com/rancher/rancher/pkg/api/store/cluster"
@@ -78,6 +79,7 @@ func Setup(ctx context.Context, management *config.ManagementContext) error {
 	ClusterTypes(schemas)
 	Preference(schemas, management)
 	ClusterRegistrationTokens(schemas)
+	Pipeline(schemas, management)
 
 	if err := MachineTypes(schemas, management); err != nil {
 		return err
@@ -233,4 +235,38 @@ func Setting(schemas *types.Schemas) {
 func ClusterTypes(schemas *types.Schemas) {
 	schema := schemas.Schema(&managementschema.Version, client.ClusterType)
 	schema.Validator = apicluster.Validator
+}
+
+func Pipeline(schemas *types.Schemas, management *config.ManagementContext) {
+
+	clusterPipelineHandler := &pipeline.ClusterPipelineHandler{
+		Management: *management,
+	}
+	schema := schemas.Schema(&managementschema.Version, client.ClusterPipelineType)
+	schema.Formatter = pipeline.ClusterPipelineFormatter
+	schema.ActionHandler = clusterPipelineHandler.ActionHandler
+
+	pipelineHandler := &pipeline.Handler{
+		Management: *management,
+	}
+	schema = schemas.Schema(&managementschema.Version, client.PipelineType)
+	schema.Formatter = pipeline.Formatter
+	schema.CollectionFormatter = pipeline.CollectionFormatter
+	schema.ActionHandler = pipelineHandler.ActionHandler
+
+	pipelineExecutionHandler := &pipeline.ExecutionHandler{
+		Management: *management,
+	}
+	schema = schemas.Schema(&managementschema.Version, client.PipelineExecutionType)
+	schema.Formatter = pipelineExecutionHandler.ExecutionFormatter
+	schema.LinkHandler = pipelineExecutionHandler.LinkHandler
+	schema.ActionHandler = pipelineExecutionHandler.ActionHandler
+
+	sourceCodeCredentialHandler := &pipeline.SourceCodeCredentialHandler{
+		Management: *management,
+	}
+	schema = schemas.Schema(&managementschema.Version, client.SourceCodeCredentialType)
+	schema.Formatter = pipeline.SourceCodeCredentialFormatter
+	schema.ActionHandler = sourceCodeCredentialHandler.ActionHandler
+	schema.LinkHandler = sourceCodeCredentialHandler.LinkHandler
 }

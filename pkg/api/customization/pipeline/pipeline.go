@@ -5,8 +5,9 @@ import (
 
 	"fmt"
 	"github.com/rancher/norman/api/access"
+	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
-	"github.com/rancher/rancher/pkg/pipeline/utils"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
@@ -25,6 +26,20 @@ func Formatter(apiContext *types.APIContext, resource *types.RawResource) {
 	resource.AddAction(apiContext, "deactivate")
 	resource.AddAction(apiContext, "run")
 	resource.AddAction(apiContext, "export")
+}
+
+func CollectionFormatter(apiContext *types.APIContext, collection *types.GenericCollection) {
+	//collection.Links["envvars"] = apiContext.URLBuilder.Link("envvars",collection)
+}
+
+func (h *Handler) LinkHandler(apiContext *types.APIContext, next types.RequestHandler) error {
+	logrus.Debugf("enter link - %v", apiContext.Link)
+	if apiContext.Link == "envvars" {
+		//TODO
+		return nil
+	} else {
+		return httperror.NewAPIError(httperror.NotFound, "Link not found")
+	}
 }
 
 func (h *Handler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
@@ -126,7 +141,7 @@ func (h *Handler) run(apiContext *types.APIContext) error {
 	}
 
 	historyClient := h.Management.Management.PipelineExecutions(ns)
-	history := utils.InitHistory(pipeline, v3.TriggerTypeManual)
+	history := utils.InitHistory(pipeline, utils.TriggerTypeUser)
 	history, err = historyClient.Create(history)
 	if err != nil {
 		return err
@@ -154,7 +169,7 @@ func (h *Handler) run(apiContext *types.APIContext) error {
 	}
 
 	pipeline.Status.NextRun++
-	pipeline.Status.LastExecutionId = history.Name
+	pipeline.Status.LastExecutionID = history.Name
 	pipeline.Status.LastStarted = time.Now().String()
 
 	_, err = pipelineClient.Update(pipeline)

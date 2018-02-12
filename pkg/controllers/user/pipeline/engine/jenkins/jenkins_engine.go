@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/pkg/errors"
-	"github.com/rancher/rancher/pkg/pipeline/utils"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
@@ -19,7 +19,7 @@ import (
 
 type JenkinsEngine struct {
 	Client  *Client
-	Cluster *config.ClusterContext
+	Cluster *config.UserContext
 }
 
 func (j JenkinsEngine) RunPipeline(pipeline *v3.Pipeline, triggerType string) error {
@@ -136,30 +136,30 @@ func (j JenkinsEngine) SyncExecution(execution *v3.PipelineExecution) (bool, err
 				return false, errors.New("error sync execution - index out of range")
 			}
 			status := jenkinsStage.Status
-			if status == "SUCCESS" && execution.Status.Stages[stage].Steps[step].State != v3.StateSuccess {
+			if status == "SUCCESS" && execution.Status.Stages[stage].Steps[step].State != utils.StateSuccess {
 				updated = true
 				successStep(execution, stage, step, jenkinsStage)
-			} else if status == "FAILED" && execution.Status.Stages[stage].Steps[step].State != v3.StateFail {
+			} else if status == "FAILED" && execution.Status.Stages[stage].Steps[step].State != utils.StateFail {
 				updated = true
 				failStep(execution, stage, step, jenkinsStage)
-			} else if status == "IN_PROGRESS" && execution.Status.Stages[stage].Steps[step].State != v3.StateBuilding {
+			} else if status == "IN_PROGRESS" && execution.Status.Stages[stage].Steps[step].State != utils.StateBuilding {
 				updated = true
 				buildingStep(execution, stage, step, jenkinsStage)
 			}
 		}
 	}
 
-	if info.Status == "SUCCESS" && execution.Status.State != v3.StateSuccess {
+	if info.Status == "SUCCESS" && execution.Status.State != utils.StateSuccess {
 		updated = true
 		execution.Labels = utils.PIPELINE_FINISH_LABEL
-		execution.Status.State = v3.StateSuccess
-	} else if info.Status == "FAILED" && execution.Status.State != v3.StateFail {
+		execution.Status.State = utils.StateSuccess
+	} else if info.Status == "FAILED" && execution.Status.State != utils.StateFail {
 		updated = true
 		execution.Labels = utils.PIPELINE_FINISH_LABEL
-		execution.Status.State = v3.StateFail
-	} else if info.Status == "IN_PROGRESS" && execution.Status.State != v3.StateBuilding {
+		execution.Status.State = utils.StateFail
+	} else if info.Status == "IN_PROGRESS" && execution.Status.State != utils.StateBuilding {
 		updated = true
-		execution.Status.State = v3.StateBuilding
+		execution.Status.State = utils.StateBuilding
 	}
 
 	return updated, nil
@@ -169,7 +169,7 @@ func successStep(execution *v3.PipelineExecution, stage int, step int, jenkinsSt
 
 	startTime := time.Unix(jenkinsStage.StartTimeMillis/1000, 0).Format(time.RFC3339)
 	endTime := time.Unix((jenkinsStage.StartTimeMillis+jenkinsStage.DurationMillis)/1000, 0).Format(time.RFC3339)
-	execution.Status.Stages[stage].Steps[step].State = v3.StateSuccess
+	execution.Status.Stages[stage].Steps[step].State = utils.StateSuccess
 	if execution.Status.Stages[stage].Steps[step].Started == "" {
 		execution.Status.Stages[stage].Steps[step].Started = startTime
 	}
@@ -181,10 +181,10 @@ func successStep(execution *v3.PipelineExecution, stage int, step int, jenkinsSt
 		execution.Status.Started = startTime
 	}
 	if utils.IsStageSuccess(execution.Status.Stages[stage]) {
-		execution.Status.Stages[stage].State = v3.StateSuccess
+		execution.Status.Stages[stage].State = utils.StateSuccess
 		execution.Status.Stages[stage].Ended = endTime
 		if stage == len(execution.Status.Stages)-1 {
-			execution.Status.State = v3.StateSuccess
+			execution.Status.State = utils.StateSuccess
 			execution.Status.Ended = endTime
 		}
 	}
@@ -194,9 +194,9 @@ func failStep(execution *v3.PipelineExecution, stage int, step int, jenkinsStage
 
 	startTime := time.Unix(jenkinsStage.StartTimeMillis/1000, 0).Format(time.RFC3339)
 	endTime := time.Unix((jenkinsStage.StartTimeMillis+jenkinsStage.DurationMillis)/1000, 0).Format(time.RFC3339)
-	execution.Status.Stages[stage].Steps[step].State = v3.StateFail
-	execution.Status.Stages[stage].State = v3.StateFail
-	execution.Status.State = v3.StateFail
+	execution.Status.Stages[stage].Steps[step].State = utils.StateFail
+	execution.Status.Stages[stage].State = utils.StateFail
+	execution.Status.State = utils.StateFail
 	if execution.Status.Stages[stage].Steps[step].Started == "" {
 		execution.Status.Stages[stage].Steps[step].Started = startTime
 	}
@@ -217,7 +217,7 @@ func failStep(execution *v3.PipelineExecution, stage int, step int, jenkinsStage
 
 func buildingStep(execution *v3.PipelineExecution, stage int, step int, jenkinsStage JenkinsStage) {
 	startTime := time.Unix(jenkinsStage.StartTimeMillis/1000, 0).Format(time.RFC3339)
-	execution.Status.Stages[stage].Steps[step].State = v3.StateBuilding
+	execution.Status.Stages[stage].Steps[step].State = utils.StateBuilding
 	if execution.Status.Stages[stage].Steps[step].Started == "" {
 		execution.Status.Stages[stage].Steps[step].Started = startTime
 	}
@@ -289,7 +289,6 @@ func (j JenkinsEngine) GetStepLog(execution *v3.PipelineExecution, stage int, st
 	}
 	//TODO hasNext
 	return nodeLog.Text, nil
-	//return "testlog\nhehehehehee", nil
 }
 
 func getJobName(pipeline *v3.Pipeline) string {

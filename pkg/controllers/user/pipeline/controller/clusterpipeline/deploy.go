@@ -1,4 +1,4 @@
-package cluster_pipeline_syncer
+package clusterpipeline
 
 import (
 	appsv1beta2 "k8s.io/api/apps/v1beta2"

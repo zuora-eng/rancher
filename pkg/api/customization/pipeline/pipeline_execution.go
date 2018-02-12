@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/rancher/norman/api/access"
+	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
-	"github.com/rancher/types/apis/management.cattle.io/v3"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
@@ -26,10 +27,12 @@ func (h ExecutionHandler) ExecutionFormatter(apiContext *types.APIContext, resou
 
 }
 
-func (h ExecutionHandler) LinkHandler(apiContext *types.APIContext) error {
+func (h ExecutionHandler) LinkHandler(apiContext *types.APIContext, next types.RequestHandler) error {
 	logrus.Debugf("enter link - %v", apiContext.Link)
 	if apiContext.Link == "log" {
 		return h.log(apiContext)
+	} else {
+		return httperror.NewAPIError(httperror.NotFound, "Link not found")
 	}
 	return nil
 }
@@ -87,11 +90,11 @@ func (h *ExecutionHandler) notify(apiContext *types.APIContext) error {
 		return errors.New("invalid status")
 	}
 	if state == "start" {
-		pipelineHistory.Status.Stages[stageOrdinal].Steps[stepOrdinal].State = v3.StateBuilding
+		pipelineHistory.Status.Stages[stageOrdinal].Steps[stepOrdinal].State = utils.StateBuilding
 	} else if state == "success" {
-		pipelineHistory.Status.Stages[stageOrdinal].Steps[stepOrdinal].State = v3.StateSuccess
+		pipelineHistory.Status.Stages[stageOrdinal].Steps[stepOrdinal].State = utils.StateSuccess
 	} else if state == "fail" {
-		pipelineHistory.Status.Stages[stageOrdinal].Steps[stepOrdinal].State = v3.StateFail
+		pipelineHistory.Status.Stages[stageOrdinal].Steps[stepOrdinal].State = utils.StateFail
 	} else {
 		return errors.New("unknown state")
 	}

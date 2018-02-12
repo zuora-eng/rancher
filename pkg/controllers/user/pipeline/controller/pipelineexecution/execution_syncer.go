@@ -1,11 +1,10 @@
-package controller
+package pipelineexecution
 
 import (
 	"context"
-	"fmt"
-	"github.com/rancher/rancher/pkg/cluster/utils"
-	"github.com/rancher/rancher/pkg/pipeline/engine"
-	pipelineutils "github.com/rancher/rancher/pkg/pipeline/utils"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/engine"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
+	"github.com/rancher/rancher/pkg/ticker"
 	"github.com/rancher/types/apis/core/v1"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
@@ -14,7 +13,7 @@ import (
 )
 
 const (
-	syncInterval = 20 * time.Second
+	syncStateInterval = 20 * time.Second
 )
 
 type ExecutionStateSyncer struct {
@@ -22,46 +21,24 @@ type ExecutionStateSyncer struct {
 	pipelineExecutions      v3.PipelineExecutionInterface
 	nodeLister              v1.NodeLister
 	serviceLister           v1.ServiceLister
-	cluster                 *config.ClusterContext
+	cluster                 *config.UserContext
 }
 
-func Registerxxx(ctx context.Context, cluster *config.ClusterContext) {
-	pipelineExecutions := cluster.Management.Management.PipelineExecutions("")
-	pipelineExecutionLister := pipelineExecutions.Controller().Lister()
-
-	nodeLister := cluster.Core.Nodes("").Controller().Lister()
-	serviceLister := cluster.Core.Services("").Controller().Lister()
-	s := &ExecutionStateSyncer{
-		pipelineExecutionLister: pipelineExecutionLister,
-		pipelineExecutions:      pipelineExecutions,
-		nodeLister:              nodeLister,
-		serviceLister:           serviceLister,
-	}
-	//pipelineExecutions.Controller().AddHandler(s.GetName(), s.sync)
-	fmt.Println(s)
-	go s.syncState(ctx, syncInterval)
-}
-
-func (s *ExecutionStateSyncer) Sync(key string, obj *v3.Pipeline) error {
-
-	return nil
-}
-
-func (s *ExecutionStateSyncer) syncState(ctx context.Context, syncInterval time.Duration) {
-	for range utils.TickerContext(ctx, syncInterval) {
-		logrus.Debugf("Start sync pipeline execution")
-		s.syncExecutions()
-		logrus.Debugf("Sync pipeline execution complete")
+func (s *ExecutionStateSyncer) sync(ctx context.Context, syncInterval time.Duration) {
+	for range ticker.Context(ctx, syncInterval) {
+		logrus.Debugf("Start sync pipeline execution state")
+		s.syncState()
+		logrus.Debugf("Sync pipeline execution state complete")
 	}
 
 }
 
-func (s *ExecutionStateSyncer) syncExecutions() {
-	executions, err := s.pipelineExecutionLister.List("", pipelineutils.PIPELINE_INPROGRESS_LABEL.AsSelector())
+func (s *ExecutionStateSyncer) syncState() {
+	executions, err := s.pipelineExecutionLister.List("", utils.PIPELINE_INPROGRESS_LABEL.AsSelector())
 	if err != nil {
 		logrus.Errorf("Error listing PipelineExecutions - %v", err)
 	}
-	url, err := pipelineutils.GetJenkinsURL(s.nodeLister, s.serviceLister)
+	url, err := utils.GetJenkinsURL(s.nodeLister, s.serviceLister)
 	if err != nil {
 		logrus.Errorf("Error get Jenkins url - %v", err)
 	}
@@ -70,11 +47,11 @@ func (s *ExecutionStateSyncer) syncExecutions() {
 		logrus.Errorf("Error get Jenkins engine - %v", err)
 	}
 	for _, e := range executions {
-		if e.Status.State == v3.StateWaiting || e.Status.State == v3.StateBuilding {
+		if e.Status.State == utils.StateWaiting || e.Status.State == utils.StateBuilding {
 			updated, err := pipelineEngine.SyncExecution(e)
 			if err != nil {
 				logrus.Errorf("Error sync pipeline execution - %v", err)
-				e.Status.State = v3.StateFail
+				e.Status.State = utils.StateFail
 				if _, err := s.pipelineExecutions.Update(e); err != nil {
 					logrus.Errorf("Error update pipeline execution - %v", err)
 				}
@@ -85,8 +62,4 @@ func (s *ExecutionStateSyncer) syncExecutions() {
 			}
 		}
 	}
-}
-
-func (s *ExecutionStateSyncer) GetName() string {
-	return "pipelineexecution-statesync-controller"
 }

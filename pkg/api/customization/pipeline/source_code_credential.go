@@ -3,7 +3,7 @@ package pipeline
 import (
 	"github.com/rancher/norman/api/access"
 	"github.com/rancher/norman/types"
-	"github.com/rancher/rancher/pkg/pipeline/remote/booter"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
@@ -13,20 +13,16 @@ import (
 	"net/http"
 )
 
-type RemoteAccountHandler struct {
+type SourceCodeCredentialHandler struct {
 	Management config.ManagementContext
 }
 
-func RemoteAccountCollectionFormatter(apiContext *types.APIContext, collection *types.GenericCollection) {
-	collection.AddAction(apiContext, "auth")
-}
-
-func RemoteAccountFormatter(apiContext *types.APIContext, resource *types.RawResource) {
+func SourceCodeCredentialFormatter(apiContext *types.APIContext, resource *types.RawResource) {
 	resource.AddAction(apiContext, "refreshrepos")
 	resource.Links["repos"] = apiContext.URLBuilder.Link("repos", resource)
 }
 
-func (h RemoteAccountHandler) LinkHandler(apiContext *types.APIContext) error {
+func (h SourceCodeCredentialHandler) LinkHandler(apiContext *types.APIContext, next types.RequestHandler) error {
 
 	repos, err := h.getReposById(apiContext.ID)
 	if err != nil {
@@ -46,19 +42,11 @@ func (h RemoteAccountHandler) LinkHandler(apiContext *types.APIContext) error {
 	if err := access.List(apiContext, apiContext.Version, client.SourceCodeRepositoryType, option, &data); err != nil {
 		return err
 	}
-	//data := []map[string]interface{}{}
-	//for _, repo := range repos {
-	//	repoMap, err := convert.EncodeToMap(repo)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	data = append(data, repoMap)
-	//}
 	apiContext.Type = client.SourceCodeRepositoryType
 	apiContext.WriteResponse(http.StatusOK, data)
 	return nil
 }
-func (h *RemoteAccountHandler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
+func (h *SourceCodeCredentialHandler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
 	logrus.Debugf("do remote account action:%s", actionName)
 
 	switch actionName {
@@ -68,7 +56,7 @@ func (h *RemoteAccountHandler) ActionHandler(actionName string, action *types.Ac
 	return nil
 }
 
-func (h *RemoteAccountHandler) refreshrepos(apiContext *types.APIContext) error {
+func (h *SourceCodeCredentialHandler) refreshrepos(apiContext *types.APIContext) error {
 	logrus.Infof("get id:%s", apiContext.ID)
 
 	_, err := h.refreshReposById(apiContext.ID)
@@ -94,7 +82,7 @@ func getRedirectURL(apiContext *types.APIContext) string {
 	return "https://example.com/redirect"
 }
 
-func (h *RemoteAccountHandler) getReposById(sourceCodeCredentialId string) ([]v3.SourceCodeRepository, error) {
+func (h *SourceCodeCredentialHandler) getReposById(sourceCodeCredentialId string) ([]v3.SourceCodeRepository, error) {
 	result := []v3.SourceCodeRepository{}
 	repoList, err := h.Management.Management.SourceCodeRepositories("").List(metav1.ListOptions{})
 	if err != nil {
@@ -108,7 +96,7 @@ func (h *RemoteAccountHandler) getReposById(sourceCodeCredentialId string) ([]v3
 	return result, nil
 }
 
-func (h *RemoteAccountHandler) refreshReposById(sourceCodeCredentialId string) ([]v3.SourceCodeRepository, error) {
+func (h *SourceCodeCredentialHandler) refreshReposById(sourceCodeCredentialId string) ([]v3.SourceCodeRepository, error) {
 
 	credential, err := h.Management.Management.SourceCodeCredentials("").Get(sourceCodeCredentialId, metav1.GetOptions{})
 	if err != nil {
@@ -119,10 +107,10 @@ func (h *RemoteAccountHandler) refreshReposById(sourceCodeCredentialId string) (
 
 	mockConfig := v3.ClusterPipeline{
 		Spec: v3.ClusterPipelineSpec{
-			GithubConfig: &v3.GithubConfig{},
+			GithubConfig: &v3.GithubClusterConfig{},
 		},
 	}
-	remote, err := booter.New(mockConfig, remoteType)
+	remote, err := remote.New(mockConfig, remoteType)
 	if err != nil {
 		return nil, err
 	}
