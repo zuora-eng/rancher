@@ -6,7 +6,6 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/engine"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/rancher/pkg/ticker"
-	"github.com/rancher/types/apis/core/v1"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
@@ -21,8 +20,6 @@ type ExecutionLogSyncer struct {
 	pipelineExecutionLister    v3.PipelineExecutionLister
 	pipelineExecutionLogLister v3.PipelineExecutionLogLister
 	pipelineExecutionLogs      v3.PipelineExecutionLogInterface
-	nodeLister                 v1.NodeLister
-	serviceLister              v1.ServiceLister
 	cluster                    *config.UserContext
 }
 

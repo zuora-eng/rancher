@@ -225,8 +225,8 @@ func (c *Client) BuildJob(jobname string, params map[string]string) (string, err
 	return "", nil
 }
 
-func (c *Client) GetBuildInfo(jobname string, buildNumber int) (*JenkinsBuildInfo, error) {
-	buildInfoURI := fmt.Sprintf(JenkinsBuildInfoURI, jobname, buildNumber)
+func (c *Client) GetBuildInfo(jobname string) (*JenkinsBuildInfo, error) {
+	buildInfoURI := fmt.Sprintf(JenkinsBuildInfoURI, jobname)
 
 	var targetURL *url.URL
 	var err error

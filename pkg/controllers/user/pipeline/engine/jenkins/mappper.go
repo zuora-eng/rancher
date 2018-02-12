@@ -2,6 +2,7 @@ package jenkins
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
@@ -76,16 +77,30 @@ func convertPipeline(pipeline *v3.Pipeline) string {
 		for k, step := range stage.Steps {
 			stepName := fmt.Sprintf("step-%d-%d", j, k)
 			image := ""
+			options := ""
 			if step.SourceCodeConfig != nil {
 				image = "alpine/git"
 			} else if step.RunScriptConfig != nil {
 				image = step.RunScriptConfig.Image
 			} else if step.PublishImageConfig != nil {
-				image = "docker"
+				registry, repo, tag := utils.SplitImageTag(step.PublishImageConfig.Tag)
+				//TODO key-key mapping instead of registry-key mapping
+				secretName := fmt.Sprintf("%s-%s", pipeline.Spec.ProjectName, base64.StdEncoding.EncodeToString([]byte(registry)))
+				image = "plugins/docker"
+				publishoption := `, privileged: true, envVars: [
+			envVar(key: 'PLUGIN_REPO', value: '%s/%s'),
+			envVar(key: 'PLUGIN_TAG', value: '%s'),
+			envVar(key: 'PLUGIN_DOCKERFILE', value: '%s'),
+			envVar(key: 'PLUGIN_CONTEXT', value: '%s'),
+			envVar(key: 'DOCKER_REGISTRY', value: '%s'),
+            secretEnvVar(key: 'DOCKER_USERNAME', secretName: '%s', secretKey: 'username'),
+            secretEnvVar(key: 'DOCKER_PASSWORD', secretName: '%s', secretKey: 'password'),
+        ]`
+				options = fmt.Sprintf(publishoption, registry, repo, tag, step.PublishImageConfig.DockerfilePath, step.PublishImageConfig.BuildContext, registry, secretName, secretName)
 			} else {
 				return ""
 			}
-			containerDef := fmt.Sprintf(containerBlock, stepName, image)
+			containerDef := fmt.Sprintf(containerBlock, stepName, image, options)
 			containerbuffer.WriteString(containerDef)
 
 		}
@@ -120,7 +135,7 @@ timestamps {
 }
 }`
 
-const containerBlock = `containerTemplate(name: '%s', image: '%s', ttyEnabled: true, command: 'cat'),`
+const containerBlock = `containerTemplate(name: '%s', image: '%s', ttyEnabled: true, command: 'cat' %s),`
 
 func preStepScript(pipeline *v3.Pipeline, stage int, step int) string {
 	if pipeline == nil {

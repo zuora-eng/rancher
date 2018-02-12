@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -103,8 +104,8 @@ func UpdateEndpoint(apiContext *types.APIContext) error {
 
 //FIXME proper way to connect to Jenkins in cluster
 func GetJenkinsURL(cluster *config.UserContext) (string, error) {
-	nodeLister := cluster.Management.Core.Nodes("").Controller().Lister()
-	serviceLister := cluster.Management.Core.Services("").Controller().Lister()
+	nodeLister := cluster.Core.Nodes("").Controller().Lister()
+	serviceLister := cluster.Core.Services("").Controller().Lister()
 	nodes, err := nodeLister.List("", labels.NewSelector())
 	if err != nil {
 		return "", err
@@ -118,7 +119,7 @@ func GetJenkinsURL(cluster *config.UserContext) (string, error) {
 	host := nodes[0].Status.Addresses[0].Address
 
 	svcport := 0
-	service, err := serviceLister.Get("cattle-pipeline", "jenkins")
+	service, err := serviceLister.Get(PIPELINE_NAMESPACE, "jenkins")
 	if err != nil {
 		return "", err
 	}
@@ -160,4 +161,24 @@ func RunPipeline(pipelines v3.PipelineInterface, pipelineExecutions v3.PipelineE
 		return err
 	}
 	return nil
+}
+
+func SplitImageTag(image string) (string, string, string) {
+	registry, repo, tag := "", "", ""
+	i := strings.Index(image, "/")
+	if i == -1 || (!strings.ContainsAny(image[:i], ".:") && image[:i] != "localhost") {
+		registry = DEFAULT_REGISTRY
+	} else {
+		registry = image[:i]
+		image = image[i+1:]
+	}
+	i = strings.Index(image, ":")
+	if i == -1 {
+		repo = image
+		tag = DEFAULT_TAG
+	} else {
+		repo = image[:i]
+		tag = image[i+1:]
+	}
+	return registry, repo, tag
 }

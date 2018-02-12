@@ -14,29 +14,28 @@ type PipelineExecutionLifecycle struct {
 }
 
 func Register(ctx context.Context, cluster *config.UserContext) {
+	pipelines := cluster.Management.Management.Pipelines("")
+	pipelineLister := pipelines.Controller().Lister()
 	pipelineExecutions := cluster.Management.Management.PipelineExecutions("")
 	pipelineExecutionLister := pipelineExecutions.Controller().Lister()
 	pipelineExecutionLogs := cluster.Management.Management.PipelineExecutionLogs("")
 	pipelineExecutionLogLister := pipelineExecutionLogs.Controller().Lister()
 
-	nodeLister := cluster.Core.Nodes("").Controller().Lister()
-	serviceLister := cluster.Core.Services("").Controller().Lister()
-
 	pipelineExecutionLifecycle := &PipelineExecutionLifecycle{
 		cluster: cluster,
 	}
 	stateSyncer := &ExecutionStateSyncer{
+		pipelineLister:          pipelineLister,
+		pipelines:               pipelines,
 		pipelineExecutionLister: pipelineExecutionLister,
 		pipelineExecutions:      pipelineExecutions,
-		nodeLister:              nodeLister,
-		serviceLister:           serviceLister,
+		cluster:                 cluster,
 	}
 	logSyncer := &ExecutionLogSyncer{
 		pipelineExecutionLister:    pipelineExecutionLister,
 		pipelineExecutionLogLister: pipelineExecutionLogLister,
 		pipelineExecutionLogs:      pipelineExecutionLogs,
-		nodeLister:                 nodeLister,
-		serviceLister:              serviceLister,
+		cluster:                    cluster,
 	}
 
 	pipelineExecutions.AddLifecycle(pipelineExecutionLifecycle.GetName(), pipelineExecutionLifecycle)

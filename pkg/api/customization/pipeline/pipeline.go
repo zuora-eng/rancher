@@ -5,6 +5,7 @@ import (
 
 	"fmt"
 	"github.com/rancher/norman/api/access"
+	"github.com/rancher/norman/api/handler"
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
@@ -42,13 +43,15 @@ func (h *Handler) LinkHandler(apiContext *types.APIContext, next types.RequestHa
 	}
 }
 
-func (h *Handler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
-	logrus.Infof("do activity action:%s", actionName)
-	//TODO FIXME
-	//update endpoint by request url
+func (h *Handler) CreateHandler(apiContext *types.APIContext, next types.RequestHandler) error {
 	if err := utils.UpdateEndpoint(apiContext); err != nil {
-		logrus.Errorf("update endpoint got error:%v", err)
+		return err
 	}
+	return handler.CreateHandler(apiContext, next)
+}
+
+func (h *Handler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
+	logrus.Debugf("do pipeline action:%s", actionName)
 
 	switch actionName {
 	case "activate":

@@ -6,7 +6,6 @@ import (
 	"github.com/rancher/norman/api/access"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote"
-	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
@@ -30,12 +29,6 @@ func ClusterPipelineFormatter(apiContext *types.APIContext, resource *types.RawR
 }
 
 func (h *ClusterPipelineHandler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
-
-	//TODO FIXME
-	//update endpoint by request url
-	if err := utils.UpdateEndpoint(apiContext); err != nil {
-		logrus.Errorf("update endpoint got error:%v", err)
-	}
 
 	logrus.Infof("get id:%s", apiContext.ID)
 	parts := strings.Split(apiContext.ID, ":")

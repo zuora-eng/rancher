@@ -32,7 +32,7 @@ func (c *client) createGithubWebhook(user string, repo string, accesstoken strin
 	hook.Config["secret"] = secret
 	hook.Config["insecure_ssl"] = "1"
 
-	logrus.Infof("hook to create:%v", hook)
+	logrus.Debugf("hook to create:%v", hook)
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(hook)
 	client := http.Client{}

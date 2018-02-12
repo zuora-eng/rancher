@@ -5,7 +5,6 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/engine"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/rancher/pkg/ticker"
-	"github.com/rancher/types/apis/core/v1"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
@@ -17,10 +16,10 @@ const (
 )
 
 type ExecutionStateSyncer struct {
+	pipelineLister          v3.PipelineLister
+	pipelines               v3.PipelineInterface
 	pipelineExecutionLister v3.PipelineExecutionLister
 	pipelineExecutions      v3.PipelineExecutionInterface
-	nodeLister              v1.NodeLister
-	serviceLister           v1.ServiceLister
 	cluster                 *config.UserContext
 }
 
@@ -57,6 +56,18 @@ func (s *ExecutionStateSyncer) syncState() {
 			} else if updated {
 				if _, err := s.pipelineExecutions.Update(e); err != nil {
 					logrus.Errorf("Error update pipeline execution - %v", err)
+				}
+
+				//update lastrunstate of the pipeline
+				p, err := s.pipelineLister.Get(e.Spec.Pipeline.Namespace, e.Spec.Pipeline.Name)
+				if err != nil {
+					logrus.Errorf("Error get pipeline - %v", err)
+				}
+				if p.Status.LastExecutionID == e.Name {
+					p.Status.LastRunState = e.Status.State
+					if _, err := s.pipelines.Update(p); err != nil {
+						logrus.Errorf("Error update pipeline - %v", err)
+					}
 				}
 			}
 		}

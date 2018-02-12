@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote"
-	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,21 +17,14 @@ func Register(ctx context.Context, cluster *config.UserContext) {
 	pipelines := cluster.Management.Management.Pipelines("")
 	pipelineLister := pipelines.Controller().Lister()
 	pipelineExecutions := cluster.Management.Management.PipelineExecutions("")
-	pipelineExecutionLister := cluster.Management.Management.PipelineExecutions("").Controller().Lister()
-
-	nodeLister := cluster.Core.Nodes("").Controller().Lister()
-	serviceLister := cluster.Core.Services("").Controller().Lister()
 
 	pipelineLifecycle := &PipelineLifecycle{
 		cluster: cluster,
 	}
 	s := &CronSyncer{
-		pipelineLister:          pipelineLister,
-		pipelines:               pipelines,
-		pipelineExecutionLister: pipelineExecutionLister,
-		pipelineExecutions:      pipelineExecutions,
-		nodeLister:              nodeLister,
-		serviceLister:           serviceLister,
+		pipelineLister:     pipelineLister,
+		pipelines:          pipelines,
+		pipelineExecutions: pipelineExecutions,
 	}
 
 	pipelines.AddLifecycle("pipeline-controller", pipelineLifecycle)
@@ -55,6 +47,16 @@ func (l *PipelineLifecycle) Create(obj *v3.Pipeline) (*v3.Pipeline, error) {
 }
 
 func (l *PipelineLifecycle) Updated(obj *v3.Pipeline) (*v3.Pipeline, error) {
+	pipelineLister := l.cluster.Management.Management.Pipelines("").Controller().Lister()
+	pipeline, err := pipelineLister.Get(obj.Namespace, obj.Name)
+	if err != nil {
+		return obj, err
+	}
+	if (obj.Spec.TriggerCronExpression != pipeline.Spec.TriggerCronExpression) ||
+		(obj.Spec.TriggerCronTimezone != pipeline.Spec.TriggerCronTimezone) {
+		//cron trigger changed, reset
+		obj.Status.NextStart = ""
+	}
 	return obj, nil
 }
 
@@ -89,10 +91,7 @@ func (l *PipelineLifecycle) createHook(obj *v3.Pipeline) (string, error) {
 		return "", err
 	}
 
-	//TODO fixme
-	hookUrl := utils.CI_ENDPOINT
-
-	id, err := remote.CreateHook(obj, accessToken, hookUrl)
+	id, err := remote.CreateHook(obj, accessToken)
 	if err != nil {
 		return "", err
 	}

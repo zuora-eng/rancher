@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote/model"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/tomnomnom/linkheader"
@@ -93,7 +94,7 @@ func (c *client) Login(redirectURL string, code string) (*v3.SourceCodeCredentia
 	return c.GetAccount(token.AccessToken)
 }
 
-func (c *client) CreateHook(pipeline *v3.Pipeline, accessToken string, hookUrl string) (string, error) {
+func (c *client) CreateHook(pipeline *v3.Pipeline, accessToken string) (string, error) {
 	if len(pipeline.Spec.Stages) <= 0 || len(pipeline.Spec.Stages[0].Steps) <= 0 || pipeline.Spec.Stages[0].Steps[0].SourceCodeConfig == nil {
 		return "", errors.New("invalid pipeline")
 	}
@@ -102,7 +103,7 @@ func (c *client) CreateHook(pipeline *v3.Pipeline, accessToken string, hookUrl s
 	if err != nil {
 		return "", err
 	}
-
+	hookUrl := fmt.Sprintf("%s?pipelineId=%s:%s", utils.CI_ENDPOINT, pipeline.Namespace, pipeline.Name)
 	id, err := c.createGithubWebhook(user, repo, accessToken, hookUrl, pipeline.Status.Token)
 	if err != nil {
 		return "", err

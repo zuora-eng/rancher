@@ -1,6 +1,10 @@
 package utils
 
 const (
+	PIPELINE_NAMESPACE = "cattle-pipeline"
+	DEFAULT_REGISTRY   = "index.docker.io"
+	DEFAULT_TAG        = "latest"
+
 	StepTypeSourceCode   = "sourceCode"
 	StepTypeRunScript    = "runScript"
 	StepTypePublishImage = "publishImage"

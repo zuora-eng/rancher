@@ -2,6 +2,7 @@ package clusterpipeline
 
 import (
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/engine/jenkins"
+	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -15,7 +16,7 @@ const (
 func getSecret() *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "cattle-pipeline",
+			Namespace: utils.PIPELINE_NAMESPACE,
 			Name:      "jenkins",
 		},
 		Data: map[string][]byte{
@@ -28,7 +29,7 @@ func getSecret() *corev1.Secret {
 func getJenkinsService() *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "cattle-pipeline",
+			Namespace: utils.PIPELINE_NAMESPACE,
 			Name:      "jenkins",
 		},
 		Spec: corev1.ServiceSpec{
@@ -49,7 +50,7 @@ func getJenkinsService() *corev1.Service {
 func getJenkinsAgentService() *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "cattle-pipeline",
+			Namespace: utils.PIPELINE_NAMESPACE,
 			Name:      "jenkins-agent",
 		},
 		Spec: corev1.ServiceSpec{
@@ -70,7 +71,7 @@ func getJenkinsAgentService() *corev1.Service {
 func getConfigMap() *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "cattle-pipeline",
+			Namespace: utils.PIPELINE_NAMESPACE,
 			Name:      "jenkins",
 		},
 		Data: map[string]string{
@@ -85,7 +86,7 @@ func getConfigMap() *corev1.ConfigMap {
 func getServiceAccount() *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "cattle-pipeline",
+			Namespace: utils.PIPELINE_NAMESPACE,
 			Name:      "jenkins",
 		},
 	}
@@ -103,7 +104,7 @@ func getRoleBindings() *rbacv1.ClusterRoleBinding {
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      "ServiceAccount",
-			Namespace: "cattle-pipeline",
+			Namespace: utils.PIPELINE_NAMESPACE,
 			Name:      "jenkins",
 		}},
 	}
@@ -112,7 +113,7 @@ func getJenkinsDeployment() *appsv1beta2.Deployment {
 	replicas := int32(1)
 	return &appsv1beta2.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "cattle-pipeline",
+			Namespace: utils.PIPELINE_NAMESPACE,
 			Name:      "jenkins",
 		},
 		Spec: appsv1beta2.DeploymentSpec{

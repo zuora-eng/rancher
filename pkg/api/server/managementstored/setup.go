@@ -259,6 +259,7 @@ func Pipeline(schemas *types.Schemas, management *config.ManagementContext) {
 	schema.Formatter = pipeline.Formatter
 	schema.CollectionFormatter = pipeline.CollectionFormatter
 	schema.ActionHandler = pipelineHandler.ActionHandler
+	schema.CreateHandler = pipelineHandler.CreateHandler
 
 	pipelineExecutionHandler := &pipeline.ExecutionHandler{
 		Management: *management,

@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/rancher/pkg/ticker"
-	"github.com/rancher/types/apis/core/v1"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/robfig/cron"
 	"github.com/sirupsen/logrus"
@@ -18,19 +17,16 @@ const (
 )
 
 type CronSyncer struct {
-	pipelineLister          v3.PipelineLister
-	pipelines               v3.PipelineInterface
-	pipelineExecutions      v3.PipelineExecutionInterface
-	pipelineExecutionLister v3.PipelineExecutionLister
-	nodeLister              v1.NodeLister
-	serviceLister           v1.ServiceLister
+	pipelineLister     v3.PipelineLister
+	pipelines          v3.PipelineInterface
+	pipelineExecutions v3.PipelineExecutionInterface
 }
 
 func (s *CronSyncer) sync(ctx context.Context, syncInterval time.Duration) {
 	for range ticker.Context(ctx, syncInterval) {
-		logrus.Debugf("Start sync pipeline execution log")
+		logrus.Debugf("Start sync pipeline cron")
 		s.syncCron()
-		logrus.Debugf("Sync pipeline execution log complete")
+		logrus.Debugf("Sync pipeline cron complete")
 	}
 }
 
