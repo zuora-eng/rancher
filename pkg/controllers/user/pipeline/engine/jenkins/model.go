@@ -338,7 +338,7 @@ type JenkinsFlowNode struct {
 	Name                 string `json:"name"`
 	ExecNode             string `json:"execNode"`
 	Status               string `json:"status"`
-	ParameterDescription string "parameterDescription"
+	ParameterDescription string `json:"parameterDescription"`
 	StartTimeMillis      int64  `json:"startTimeMillis"`
 	DurationMillis       int64  `json:"durationMillis"`
 	PauseDurationMillis  int64  `json:"pauseDurationMillis"`

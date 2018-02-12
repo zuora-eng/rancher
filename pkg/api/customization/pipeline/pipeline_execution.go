@@ -34,7 +34,6 @@ func (h ExecutionHandler) LinkHandler(apiContext *types.APIContext, next types.R
 	} else {
 		return httperror.NewAPIError(httperror.NotFound, "Link not found")
 	}
-	return nil
 }
 
 func (h *ExecutionHandler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
