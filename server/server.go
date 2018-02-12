@@ -10,6 +10,7 @@ import (
 	"github.com/rancher/rancher/pkg/auth/providers/publicapi"
 	authrequests "github.com/rancher/rancher/pkg/auth/requests"
 	"github.com/rancher/rancher/pkg/auth/tokens"
+	hooks "github.com/rancher/rancher/pkg/controllers/user/pipeline/handler"
 	"github.com/rancher/rancher/pkg/proxy"
 	"github.com/rancher/rancher/pkg/remotedialer"
 	"github.com/rancher/rancher/pkg/tunnel"
@@ -71,6 +72,11 @@ func New(ctx context.Context, httpPort, httpsPort int, management *config.Manage
 		return nil, err
 	}
 
+	//webhook endpoint for pipeline
+	webhookHandler := &hooks.WebhookHandler{
+		Management: management,
+	}
+
 	unauthed := mux.NewRouter()
 	unauthed.Handle("/", ui.UI(managementAPI))
 	unauthed.Handle("/v3/settings/cacerts", authedAPIs).Methods(http.MethodGet)
@@ -80,6 +86,7 @@ func New(ctx context.Context, httpPort, httpsPort int, management *config.Manage
 	unauthed.PathPrefix("/v3").Handler(authedHandler)
 	unauthed.PathPrefix("/meta").Handler(authedHandler)
 	unauthed.PathPrefix("/k8s/clusters/").Handler(authedHandler)
+	unauthed.PathPrefix("/hooks").Handler(webhookHandler)
 
 	uiContent := ui.Content()
 	unauthed.PathPrefix("/assets").Handler(uiContent)
