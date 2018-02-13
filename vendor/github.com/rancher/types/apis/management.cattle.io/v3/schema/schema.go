@@ -31,12 +31,8 @@ var (
 		Init(logTypes).
 		Init(globalTypes).
 		Init(rkeTypes).
-<<<<<<< HEAD
-		Init(alertTypes)
-=======
 		Init(alertTypes).
 		Init(pipelineTypes)
->>>>>>> update vendor
 
 	TokenSchemas = factory.Schemas(&Version).
 			Init(tokens)
@@ -299,8 +295,6 @@ func alertTypes(schema *types.Schemas) *types.Schemas {
 		})
 
 }
-<<<<<<< HEAD
-=======
 
 func pipelineTypes(schema *types.Schemas) *types.Schemas {
 	return schema.
@@ -355,4 +349,3 @@ func pipelineTypes(schema *types.Schemas) *types.Schemas {
 		MustImport(&Version, v3.PipelineExecutionLog{})
 
 }
->>>>>>> update vendor

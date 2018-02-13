@@ -39,15 +39,12 @@ type Client struct {
 	Notifier                   NotifierOperations
 	ClusterAlert               ClusterAlertOperations
 	ProjectAlert               ProjectAlertOperations
-<<<<<<< HEAD
-=======
 	SourceCodeCredential       SourceCodeCredentialOperations
 	ClusterPipeline            ClusterPipelineOperations
 	Pipeline                   PipelineOperations
 	PipelineExecution          PipelineExecutionOperations
 	SourceCodeRepository       SourceCodeRepositoryOperations
 	PipelineExecutionLog       PipelineExecutionLogOperations
->>>>>>> update vendor
 }
 
 func NewClient(opts *clientbase.ClientOpts) (*Client, error) {
@@ -92,15 +89,12 @@ func NewClient(opts *clientbase.ClientOpts) (*Client, error) {
 	client.Notifier = newNotifierClient(client)
 	client.ClusterAlert = newClusterAlertClient(client)
 	client.ProjectAlert = newProjectAlertClient(client)
-<<<<<<< HEAD
-=======
 	client.SourceCodeCredential = newSourceCodeCredentialClient(client)
 	client.ClusterPipeline = newClusterPipelineClient(client)
 	client.Pipeline = newPipelineClient(client)
 	client.PipelineExecution = newPipelineExecutionClient(client)
 	client.SourceCodeRepository = newSourceCodeRepositoryClient(client)
 	client.PipelineExecutionLog = newPipelineExecutionLogClient(client)
->>>>>>> update vendor
 
 	return client, nil
 }

@@ -45,15 +45,12 @@ type Interface interface {
 	NotifiersGetter
 	ClusterAlertsGetter
 	ProjectAlertsGetter
-<<<<<<< HEAD
-=======
 	SourceCodeCredentialsGetter
 	ClusterPipelinesGetter
 	PipelinesGetter
 	PipelineExecutionsGetter
 	SourceCodeRepositoriesGetter
 	PipelineExecutionLogsGetter
->>>>>>> update vendor
 }
 
 type Client struct {
@@ -92,15 +89,12 @@ type Client struct {
 	notifierControllers                   map[string]NotifierController
 	clusterAlertControllers               map[string]ClusterAlertController
 	projectAlertControllers               map[string]ProjectAlertController
-<<<<<<< HEAD
-=======
 	sourceCodeCredentialControllers       map[string]SourceCodeCredentialController
 	clusterPipelineControllers            map[string]ClusterPipelineController
 	pipelineControllers                   map[string]PipelineController
 	pipelineExecutionControllers          map[string]PipelineExecutionController
 	sourceCodeRepositoryControllers       map[string]SourceCodeRepositoryController
 	pipelineExecutionLogControllers       map[string]PipelineExecutionLogController
->>>>>>> update vendor
 }
 
 func NewForConfig(config rest.Config) (Interface, error) {
@@ -148,15 +142,12 @@ func NewForConfig(config rest.Config) (Interface, error) {
 		notifierControllers:                   map[string]NotifierController{},
 		clusterAlertControllers:               map[string]ClusterAlertController{},
 		projectAlertControllers:               map[string]ProjectAlertController{},
-<<<<<<< HEAD
-=======
 		sourceCodeCredentialControllers:       map[string]SourceCodeCredentialController{},
 		clusterPipelineControllers:            map[string]ClusterPipelineController{},
 		pipelineControllers:                   map[string]PipelineController{},
 		pipelineExecutionControllers:          map[string]PipelineExecutionController{},
 		sourceCodeRepositoryControllers:       map[string]SourceCodeRepositoryController{},
 		pipelineExecutionLogControllers:       map[string]PipelineExecutionLogController{},
->>>>>>> update vendor
 	}, nil
 }
 
@@ -574,8 +565,6 @@ func (c *Client) ProjectAlerts(namespace string) ProjectAlertInterface {
 		objectClient: objectClient,
 	}
 }
-<<<<<<< HEAD
-=======
 
 type SourceCodeCredentialsGetter interface {
 	SourceCodeCredentials(namespace string) SourceCodeCredentialInterface
@@ -654,4 +643,3 @@ func (c *Client) PipelineExecutionLogs(namespace string) PipelineExecutionLogInt
 		objectClient: objectClient,
 	}
 }
->>>>>>> update vendor

@@ -208,17 +208,17 @@ type PipelineExecutionLogSpec struct {
 }
 
 type AuthAppInput struct {
-	Type         string `json:"type,omitempty" norman:"type=string,required"`
-	RedirectURL  string `json:"redirectUrl,omitempty" norman:"type=string"`
-	TLS          bool   `json:"tls,omitempty"`
-	Host         string `json:"host,omitempty"`
-	ClientID     string `json:"clientId,omitempty" norman:"type=string,required"`
-	ClientSecret string `json:"clientSecret,omitempty" norman:"type=string,required"`
-	Code         string `json:"code,omitempty" norman:"type=string,required"`
+	SourceCodeType string `json:"sourceCodeType,omitempty" norman:"type=string,required"`
+	RedirectURL    string `json:"redirectUrl,omitempty" norman:"type=string"`
+	TLS            bool   `json:"tls,omitempty"`
+	Host           string `json:"host,omitempty"`
+	ClientID       string `json:"clientId,omitempty" norman:"type=string,required"`
+	ClientSecret   string `json:"clientSecret,omitempty" norman:"type=string,required"`
+	Code           string `json:"code,omitempty" norman:"type=string,required"`
 }
 
 type AuthUserInput struct {
-	Type        string `json:"type,omitempty" norman:"type=string,required"`
-	RedirectURL string `json:"redirectUrl,omitempty" norman:"type=string"`
-	Code        string `json:"code,omitempty" norman:"type=string,required"`
+	SourceCodeType string `json:"sourceCodeType,omitempty" norman:"type=string,required"`
+	RedirectURL    string `json:"redirectUrl,omitempty" norman:"type=string"`
+	Code           string `json:"code,omitempty" norman:"type=string,required"`
 }
