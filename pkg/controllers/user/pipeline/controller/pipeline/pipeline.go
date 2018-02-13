@@ -6,6 +6,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -48,15 +49,33 @@ func (l *PipelineLifecycle) Create(obj *v3.Pipeline) (*v3.Pipeline, error) {
 
 func (l *PipelineLifecycle) Updated(obj *v3.Pipeline) (*v3.Pipeline, error) {
 	pipelineLister := l.cluster.Management.Management.Pipelines("").Controller().Lister()
-	pipeline, err := pipelineLister.Get(obj.Namespace, obj.Name)
+	previous, err := pipelineLister.Get(obj.Namespace, obj.Name)
 	if err != nil {
 		return obj, err
 	}
-	if (obj.Spec.TriggerCronExpression != pipeline.Spec.TriggerCronExpression) ||
-		(obj.Spec.TriggerCronTimezone != pipeline.Spec.TriggerCronTimezone) {
+	//handle cron update
+	if (obj.Spec.TriggerCronExpression != previous.Spec.TriggerCronExpression) ||
+		(obj.Spec.TriggerCronTimezone != previous.Spec.TriggerCronTimezone) {
 		//cron trigger changed, reset
 		obj.Status.NextStart = ""
 	}
+
+	//handle webhook
+	if previous.Spec.TriggerWebhook && previous.Status.WebHookID != "" && !obj.Spec.TriggerWebhook {
+		if err := l.deleteHook(previous); err != nil {
+			logrus.Errorf("fail to delete previous set webhook")
+		}
+	} else if !previous.Spec.TriggerWebhook && obj.Spec.TriggerWebhook && obj.Status.WebHookID == "" {
+		id, err := l.createHook(obj)
+		if err != nil {
+			return obj, err
+		}
+		obj.Status.WebHookID = id
+		if _, err := l.cluster.Management.Management.Pipelines("").Update(obj); err != nil {
+			return obj, err
+		}
+	}
+
 	return obj, nil
 }
 

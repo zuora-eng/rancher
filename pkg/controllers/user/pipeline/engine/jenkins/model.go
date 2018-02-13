@@ -335,13 +335,18 @@ type JenkinsWFNodeLog struct {
 }
 
 type JenkinsFlowNode struct {
-	ID                   string `json:"id"`
-	Name                 string `json:"name"`
-	ExecNode             string `json:"execNode"`
-	Status               string `json:"status"`
-	ParameterDescription string `json:"parameterDescription"`
-	StartTimeMillis      int64  `json:"startTimeMillis"`
-	DurationMillis       int64  `json:"durationMillis"`
-	PauseDurationMillis  int64  `json:"pauseDurationMillis"`
-	Error                string `json:"error"`
+	ID                   string           `json:"id"`
+	Name                 string           `json:"name"`
+	ExecNode             string           `json:"execNode"`
+	Status               string           `json:"status"`
+	ParameterDescription string           `json:"parameterDescription"`
+	StartTimeMillis      int64            `json:"startTimeMillis"`
+	DurationMillis       int64            `json:"durationMillis"`
+	PauseDurationMillis  int64            `json:"pauseDurationMillis"`
+	Error                JenkinsNodeError `json:"error"`
+}
+
+type JenkinsNodeError struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
 }

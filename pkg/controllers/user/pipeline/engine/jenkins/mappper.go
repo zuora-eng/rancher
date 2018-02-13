@@ -16,8 +16,7 @@ func ConvertPipelineToJenkinsPipeline(pipeline *v3.Pipeline) PipelineJob {
 			Class:   FLOW_DEFINITION_CLASS,
 			Plugin:  FLOW_DEFINITION_PLUGIN,
 			Sandbox: true,
-			//TODO test script
-			Script: convertPipeline(pipeline),
+			Script:  convertPipeline(pipeline),
 		},
 	}
 
@@ -25,13 +24,11 @@ func ConvertPipelineToJenkinsPipeline(pipeline *v3.Pipeline) PipelineJob {
 }
 
 func convertStep(pipeline *v3.Pipeline, stageOrdinal int, stepOrdinal int) string {
-	//var buffer bytes.Buffer
+
 	stepContent := ""
 	stepName := fmt.Sprintf("step-%d-%d", stageOrdinal, stepOrdinal)
 	step := pipeline.Spec.Stages[stageOrdinal].Steps[stepOrdinal]
 
-	//buffer.WriteString(preStepScript(pipeline, stageOrdinal, stepOrdinal))
-	//buffer.WriteString("\n")
 	if step.SourceCodeConfig != nil {
 		branch := step.SourceCodeConfig.Branch
 		branchCondition := step.SourceCodeConfig.BranchCondition
@@ -49,10 +46,6 @@ func convertStep(pipeline *v3.Pipeline, stageOrdinal int, stepOrdinal int) strin
 	} else {
 		return ""
 	}
-	//buffer.WriteString(stepContent)
-	//buffer.WriteString("\n")
-	//buffer.WriteString(postStepScript(pipeline, stageOrdinal, stepOrdinal))
-
 	return fmt.Sprintf(stepBlock, stepName, stepName, stepName, stepContent)
 }
 
@@ -139,35 +132,3 @@ timestamps {
 }`
 
 const containerBlock = `containerTemplate(name: '%s', image: '%s', ttyEnabled: true, command: 'cat' %s),`
-
-func preStepScript(pipeline *v3.Pipeline, stage int, step int) string {
-	if pipeline == nil {
-		return ""
-	}
-	executionId := fmt.Sprintf("%s-%d", pipeline.Name, pipeline.Status.NextRun)
-	skel := `sh 'curl -k -d "executionId=%s&stage=%d&step=%d&event=%s&token=%s" -H X-PipelineExecution-Notify:1 %s'`
-	script := fmt.Sprintf(skel, executionId, stage, step, utils.StateBuilding, pipeline.Status.Token, utils.CI_ENDPOINT)
-	return script
-}
-
-func postStepScript(pipeline *v3.Pipeline, stage int, step int) string {
-	if pipeline == nil {
-		return ""
-	}
-	executionId := fmt.Sprintf("%s-%d", pipeline.Name, pipeline.Status.NextRun)
-	skel := `sh 'curl -k -d "executionId=%s&stage=%d&step=%d&event=%s&token=%s" -H X-PipelineExecution-Notify:1 %s'`
-	successScript := fmt.Sprintf(skel, executionId, stage, step, utils.StateSuccess, pipeline.Status.Token, utils.CI_ENDPOINT)
-	failScript := fmt.Sprintf(skel, executionId, stage, step, utils.StateFail, pipeline.Status.Token, utils.CI_ENDPOINT)
-	//abortScript := fmt.Sprintf(skel, drivers.EXECUTION_NOTIFY_HEADER, executionId, stage, step, v3.StateAbort, pipeline.Status.Token, pipeline2.CI_ENDPOINT)
-
-	postSkel := `post {
-		success {
-			%s
-        }
-        failure {
-  			%s
-        }
-	}`
-	postScript := fmt.Sprintf(postSkel, successScript, failScript)
-	return postScript
-}
