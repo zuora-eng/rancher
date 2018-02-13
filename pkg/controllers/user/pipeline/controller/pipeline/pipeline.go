@@ -7,25 +7,31 @@ import (
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type PipelineLifecycle struct {
-	cluster *config.UserContext
+	pipelines                  v3.PipelineInterface
+	pipelineLister             v3.PipelineLister
+	sourceCodeCredentialLister v3.SourceCodeCredentialLister
 }
 
 func Register(ctx context.Context, cluster *config.UserContext) {
 	pipelines := cluster.Management.Management.Pipelines("")
 	pipelineLister := pipelines.Controller().Lister()
 	pipelineExecutions := cluster.Management.Management.PipelineExecutions("")
+	pipelineExecutionLogs := cluster.Management.Management.PipelineExecutionLogs("")
+	sourceCodeCredentialLister := cluster.Management.Management.SourceCodeCredentials("").Controller().Lister()
 
 	pipelineLifecycle := &PipelineLifecycle{
-		cluster: cluster,
+		pipelines:                  pipelines,
+		pipelineLister:             pipelineLister,
+		sourceCodeCredentialLister: sourceCodeCredentialLister,
 	}
 	s := &CronSyncer{
-		pipelineLister:     pipelineLister,
-		pipelines:          pipelines,
-		pipelineExecutions: pipelineExecutions,
+		pipelineLister:        pipelineLister,
+		pipelines:             pipelines,
+		pipelineExecutions:    pipelineExecutions,
+		pipelienExecutionLogs: pipelineExecutionLogs,
 	}
 
 	pipelines.AddLifecycle("pipeline-controller", pipelineLifecycle)
@@ -40,7 +46,7 @@ func (l *PipelineLifecycle) Create(obj *v3.Pipeline) (*v3.Pipeline, error) {
 			return obj, err
 		}
 		obj.Status.WebHookID = id
-		if _, err := l.cluster.Management.Management.Pipelines("").Update(obj); err != nil {
+		if _, err := l.pipelines.Update(obj); err != nil {
 			return obj, err
 		}
 	}
@@ -48,8 +54,7 @@ func (l *PipelineLifecycle) Create(obj *v3.Pipeline) (*v3.Pipeline, error) {
 }
 
 func (l *PipelineLifecycle) Updated(obj *v3.Pipeline) (*v3.Pipeline, error) {
-	pipelineLister := l.cluster.Management.Management.Pipelines("").Controller().Lister()
-	previous, err := pipelineLister.Get(obj.Namespace, obj.Name)
+	previous, err := l.pipelineLister.Get(obj.Namespace, obj.Name)
 	if err != nil {
 		return obj, err
 	}
@@ -71,7 +76,7 @@ func (l *PipelineLifecycle) Updated(obj *v3.Pipeline) (*v3.Pipeline, error) {
 			return obj, err
 		}
 		obj.Status.WebHookID = id
-		if _, err := l.cluster.Management.Management.Pipelines("").Update(obj); err != nil {
+		if _, err := l.pipelines.Update(obj); err != nil {
 			return obj, err
 		}
 	}
@@ -94,7 +99,7 @@ func (l *PipelineLifecycle) createHook(obj *v3.Pipeline) (string, error) {
 		return "", errors.New("invalid pipeline, missing sourcecode step")
 	}
 	credentialName := obj.Spec.Stages[0].Steps[0].SourceCodeConfig.SourceCodeCredentialName
-	credential, err := l.cluster.Management.Management.SourceCodeCredentials("").Get(credentialName, metav1.GetOptions{})
+	credential, err := l.sourceCodeCredentialLister.Get("", credentialName)
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +127,7 @@ func (l *PipelineLifecycle) deleteHook(obj *v3.Pipeline) error {
 		return errors.New("invalid pipeline, missing sourcecode step")
 	}
 	credentialName := obj.Spec.Stages[0].Steps[0].SourceCodeConfig.SourceCodeCredentialName
-	credential, err := l.cluster.Management.Management.SourceCodeCredentials("").Get(credentialName, metav1.GetOptions{})
+	credential, err := l.sourceCodeCredentialLister.Get("", credentialName)
 	if err != nil {
 		return err
 	}

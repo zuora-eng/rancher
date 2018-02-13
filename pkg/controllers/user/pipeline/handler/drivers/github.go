@@ -16,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strings"
-	"time"
 )
 
 const GITHUB_WEBHOOK_HEADER = "X-GitHub-Event"
@@ -35,19 +34,21 @@ func (g GithubDriver) Execute(req *http.Request) (int, error) {
 	if event == "ping" {
 		return http.StatusOK, nil
 	} else if event != "push" {
-		//event != "pull_request"
+		//or "pull_request"
 		return http.StatusUnprocessableEntity, fmt.Errorf("not trigger for event:%s", event)
 	}
 
-	pipelineId := req.FormValue("pipelineId")
+	pipelineId := req.URL.Query().Get("pipelineId")
 	parts := strings.Split(pipelineId, ":")
 	if len(parts) < 0 {
-		return http.StatusUnprocessableEntity, errors.New("pipeline id not valid")
+		return http.StatusUnprocessableEntity, fmt.Errorf("pipeline id '%s' is not valid", pipelineId)
 	}
 	ns := parts[0]
 	id := parts[1]
-	pipelineClient := g.Management.Management.Pipelines(ns)
-	pipeline, err := pipelineClient.GetNamespaced(ns, id, metav1.GetOptions{})
+	pipelines := g.Management.Management.Pipelines(ns)
+	pipelineExecutions := g.Management.Management.PipelineExecutions(ns)
+	pipelineExecutionLogs := g.Management.Management.PipelineExecutionLogs(ns)
+	pipeline, err := pipelines.GetNamespaced(ns, id, metav1.GetOptions{})
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -68,28 +69,18 @@ func (g GithubDriver) Execute(req *http.Request) (int, error) {
 		logrus.Error("fail to parse github webhook payload")
 		return http.StatusUnprocessableEntity, err
 	}
-	//TODO
-	if *payload.Ref != "refs/heads/"+pipeline.Spec.Stages[0].Steps[0].SourceCodeConfig.Branch {
-		logrus.Warningf("branch not match:%v,%v", *payload.Ref, pipeline.Spec.Stages[0].Steps[0].SourceCodeConfig.Branch)
-		return http.StatusInternalServerError, errors.New("branch not match")
+
+	if len(pipeline.Spec.Stages) < 1 || len(pipeline.Spec.Stages[0].Steps) < 1 || pipeline.Spec.Stages[0].Steps[0].SourceCodeConfig == nil {
+		return http.StatusInternalServerError, errors.New("Error invalid pipeline definition")
 	}
 
-	//Generate a new pipeline execution
-	historyClient := g.Management.Management.PipelineExecutions(ns)
-	history := utils.InitHistory(pipeline, utils.TriggerTypeWebhook)
-	history, err = historyClient.Create(history)
-	if err != nil {
+	if !VerifyRef(pipeline.Spec.Stages[0].Steps[0].SourceCodeConfig, payload.GetRef()) {
+		return http.StatusUnprocessableEntity, errors.New("Error Ref is not match")
+	}
+
+	if _, err := utils.RunPipeline(pipelines, pipelineExecutions, pipelineExecutionLogs, pipeline, utils.TriggerTypeWebhook); err != nil {
 		return http.StatusInternalServerError, err
 	}
-	pipeline.Status.NextRun++
-	pipeline.Status.LastExecutionID = history.Name
-	pipeline.Status.LastStarted = time.Now().String()
-
-	_, err = pipelineClient.Update(pipeline)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
 	return http.StatusOK, nil
 }
 
@@ -110,10 +101,20 @@ func VerifyGithubWebhookSignature(secret []byte, signature string, body []byte) 
 	return hmac.Equal([]byte(computed.Sum(nil)), actual)
 }
 
-func VerifyGitRefs(pipeline v3.Pipeline, refs string) {
-	payload := &github.WebHookPayload{}
-	payload.GetRef()
-	if refs == "refs/heads/"+pipeline.Spec.Stages[0].Steps[0].SourceCodeConfig.Branch {
+func VerifyRef(config *v3.SourceCodeConfig, refs string) bool {
+	branch := strings.TrimLeft(refs, "refs/heads/")
+
+	if config.BranchCondition == "all" {
+		return true
+	} else if config.BranchCondition == "except" {
+		if config.Branch == branch {
+			return false
+		}
+		return true
+	} else if config.Branch == branch {
+		return true
 
 	}
+
+	return false
 }

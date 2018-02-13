@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"github.com/rancher/norman/api/access"
+	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
@@ -24,40 +25,44 @@ func SourceCodeCredentialFormatter(apiContext *types.APIContext, resource *types
 
 func (h SourceCodeCredentialHandler) LinkHandler(apiContext *types.APIContext, next types.RequestHandler) error {
 
-	repos, err := h.getReposById(apiContext.ID)
-	if err != nil {
-		return err
-	}
-	if len(repos) < 1 {
-		return h.refreshrepos(apiContext)
+	if apiContext.Link == "repos" {
+		repos, err := h.getReposById(apiContext.ID)
+		if err != nil {
+			return err
+		}
+		if len(repos) < 1 {
+			return h.refreshrepos(apiContext)
+		}
+
+		data := []map[string]interface{}{}
+		option := &types.QueryOptions{
+			Conditions: []*types.QueryCondition{
+				types.NewConditionFromString("sourceCodeCredentialName", types.ModifierEQ, []string{apiContext.ID}...),
+			},
+		}
+
+		if err := access.List(apiContext, apiContext.Version, client.SourceCodeRepositoryType, option, &data); err != nil {
+			return err
+		}
+		apiContext.Type = client.SourceCodeRepositoryType
+		apiContext.WriteResponse(http.StatusOK, data)
+		return nil
 	}
 
-	data := []map[string]interface{}{}
-	option := &types.QueryOptions{
-		Conditions: []*types.QueryCondition{
-			types.NewConditionFromString("sourceCodeCredentialName", types.ModifierEQ, []string{apiContext.ID}...),
-		},
-	}
-
-	if err := access.List(apiContext, apiContext.Version, client.SourceCodeRepositoryType, option, &data); err != nil {
-		return err
-	}
-	apiContext.Type = client.SourceCodeRepositoryType
-	apiContext.WriteResponse(http.StatusOK, data)
-	return nil
+	return httperror.NewAPIError(httperror.NotFound, "Link not found")
 }
 func (h *SourceCodeCredentialHandler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
-	logrus.Debugf("do remote account action:%s", actionName)
+	logrus.Debugf("do sourcecodecredential action:%s", actionName)
 
 	switch actionName {
 	case "refreshrepos":
 		return h.refreshrepos(apiContext)
 	}
-	return nil
+
+	return httperror.NewAPIError(httperror.InvalidAction, "unsupported action")
 }
 
 func (h *SourceCodeCredentialHandler) refreshrepos(apiContext *types.APIContext) error {
-	logrus.Infof("get id:%s", apiContext.ID)
 
 	_, err := h.refreshReposById(apiContext.ID)
 	if err != nil {
@@ -76,10 +81,6 @@ func (h *SourceCodeCredentialHandler) refreshrepos(apiContext *types.APIContext)
 	apiContext.Type = client.SourceCodeRepositoryType
 	apiContext.WriteResponse(http.StatusOK, data)
 	return nil
-}
-
-func getRedirectURL(apiContext *types.APIContext) string {
-	return "https://example.com/redirect"
 }
 
 func (h *SourceCodeCredentialHandler) getReposById(sourceCodeCredentialId string) ([]v3.SourceCodeRepository, error) {

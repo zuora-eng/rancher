@@ -3,6 +3,7 @@ package clusterpipeline
 import (
 	"github.com/pkg/errors"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
+	"github.com/rancher/types/apis/core/v1"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
@@ -12,7 +13,8 @@ import (
 )
 
 type ClusterPipelineSyncer struct {
-	cluster *config.UserContext
+	cluster    *config.UserContext
+	namespaces v1.NamespaceInterface
 }
 
 func Register(cluster *config.UserContext) {

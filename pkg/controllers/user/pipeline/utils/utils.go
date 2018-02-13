@@ -144,13 +144,33 @@ func IsExecutionFinish(execution *v3.PipelineExecution) bool {
 	return false
 }
 
-func RunPipeline(pipelines v3.PipelineInterface, pipelineExecutions v3.PipelineExecutionInterface, pipeline *v3.Pipeline, triggerType string) error {
+func RunPipeline(pipelines v3.PipelineInterface, executions v3.PipelineExecutionInterface, logs v3.PipelineExecutionLogInterface, pipeline *v3.Pipeline, triggerType string) (*v3.PipelineExecution, error) {
 
 	//Generate a new pipeline execution
 	execution := InitHistory(pipeline, triggerType)
-	execution, err := pipelineExecutions.Create(execution)
+	execution, err := executions.Create(execution)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	//create log entries
+	for j, stage := range pipeline.Spec.Stages {
+		for k, _ := range stage.Steps {
+			log := &v3.PipelineExecutionLog{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   fmt.Sprintf("%s-%d-%d", execution.Name, j, k),
+					Labels: PIPELINE_INPROGRESS_LABEL,
+				},
+				Spec: v3.PipelineExecutionLogSpec{
+					ProjectName:           pipeline.Spec.ProjectName,
+					PipelineExecutionName: execution.Name,
+					Stage: j,
+					Step:  k,
+				},
+			}
+			if _, err := logs.Create(log); err != nil {
+				return nil, err
+			}
+		}
 	}
 	pipeline.Status.NextRun++
 	pipeline.Status.LastExecutionID = execution.Name
@@ -158,9 +178,9 @@ func RunPipeline(pipelines v3.PipelineInterface, pipelineExecutions v3.PipelineE
 
 	_, err = pipelines.Update(pipeline)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return execution, nil
 }
 
 func SplitImageTag(image string) (string, string, string) {

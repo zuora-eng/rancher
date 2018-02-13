@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/pkg/errors"
+	"github.com/rancher/norman/types/convert"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
@@ -84,19 +85,20 @@ func (j JenkinsEngine) prepareRegistryCredential(pipeline *v3.Pipeline, stage in
 	for _, s := range secretsList.Items {
 		if s.Type == "kubernetes.io/dockerconfigjson" {
 			m := map[string]interface{}{}
-			json.Unmarshal(s.Data[".dockerconfigjson"], &m)
-			if auths, ok := m["auths"].(map[string]interface{}); ok {
-				for k, v := range auths {
-					if registry != k {
-						//find matching registry credential
-						continue
-					}
-					if cred, ok := v.(map[string]interface{}); ok {
-						username = cred["username"].(string)
-						password = cred["password"].(string)
-					}
-				}
+			if err := json.Unmarshal(s.Data[".dockerconfigjson"], &m); err != nil {
+				return err
 			}
+			auths := convert.ToMapInterface(m["auths"])
+			for k, v := range auths {
+				if registry != k {
+					//find matching registry credential
+					continue
+				}
+				cred := convert.ToMapInterface(v)
+				username = cred["username"].(string)
+				password = cred["password"].(string)
+			}
+
 		}
 
 	}

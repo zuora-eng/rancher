@@ -221,7 +221,7 @@ func (c *Client) BuildJob(jobname string, params map[string]string) (string, err
 		logrus.Error(ErrBuildJobFail)
 		return "", ErrBuildJobFail
 	}
-	logrus.Infof("job queue is %s", resp.Header.Get("location"))
+	logrus.Debugf("job queue is %s", resp.Header.Get("location"))
 	return "", nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/rancher/norman/api/access"
+	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/remote"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
@@ -30,25 +31,12 @@ func ClusterPipelineFormatter(apiContext *types.APIContext, resource *types.RawR
 
 func (h *ClusterPipelineHandler) ActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
 
-	logrus.Infof("get id:%s", apiContext.ID)
-	parts := strings.Split(apiContext.ID, ":")
-	if len(parts) <= 1 {
-		return errors.New("invalid ID")
-	}
-	ns := parts[0]
-	id := parts[1]
-	client := h.Management.Management.ClusterPipelines(ns)
-	clusterPipeline, err := client.Get(id, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	logrus.Infof("do cluster pipeline action:%s", actionName)
-
+	logrus.Debugf("do cluster pipeline action:%s", actionName)
 	switch actionName {
 	case "deploy":
-		clusterPipeline.Spec.Deploy = true
+		return h.deploy(apiContext)
 	case "destroy":
-		clusterPipeline.Spec.Deploy = false
+		return h.destroy(apiContext)
 	case "revokeapp":
 		return h.revokeapp(apiContext)
 	case "authapp":
@@ -57,11 +45,55 @@ func (h *ClusterPipelineHandler) ActionHandler(actionName string, action *types.
 		return h.authuser(apiContext)
 	}
 
-	_, err = client.Update(clusterPipeline)
+	return httperror.NewAPIError(httperror.InvalidAction, "unsupported action")
+}
+
+func (h *ClusterPipelineHandler) deploy(apiContext *types.APIContext) error {
+	parts := strings.Split(apiContext.ID, ":")
+	if len(parts) <= 1 {
+		return errors.New("invalid ID")
+	}
+	ns := parts[0]
+	name := parts[1]
+	clusterPipelines := h.Management.Management.ClusterPipelines(ns)
+	clusterPipelineLister := clusterPipelines.Controller().Lister()
+	clusterPipeline, err := clusterPipelineLister.Get(ns, name)
 	if err != nil {
 		return err
 	}
+	if !clusterPipeline.Spec.Deploy {
+		clusterPipeline.Spec.Deploy = true
+		if _, err = clusterPipelines.Update(clusterPipeline); err != nil {
+			return err
+		}
+	}
+	data := map[string]interface{}{}
+	if err := access.ByID(apiContext, apiContext.Version, apiContext.Type, apiContext.ID, &data); err != nil {
+		return err
+	}
+	apiContext.WriteResponse(http.StatusOK, data)
+	return nil
+}
 
+func (h *ClusterPipelineHandler) destroy(apiContext *types.APIContext) error {
+	parts := strings.Split(apiContext.ID, ":")
+	if len(parts) <= 1 {
+		return errors.New("invalid ID")
+	}
+	ns := parts[0]
+	name := parts[1]
+	clusterPipelines := h.Management.Management.ClusterPipelines(ns)
+	clusterPipelineLister := clusterPipelines.Controller().Lister()
+	clusterPipeline, err := clusterPipelineLister.Get(ns, name)
+	if err != nil {
+		return err
+	}
+	if clusterPipeline.Spec.Deploy {
+		clusterPipeline.Spec.Deploy = false
+		if _, err = clusterPipelines.Update(clusterPipeline); err != nil {
+			return err
+		}
+	}
 	data := map[string]interface{}{}
 	if err := access.ByID(apiContext, apiContext.Version, apiContext.Type, apiContext.ID, &data); err != nil {
 		return err
@@ -77,7 +109,7 @@ func (h *ClusterPipelineHandler) authapp(apiContext *types.APIContext) error {
 		return errors.New("invalid ID")
 	}
 	ns := parts[0]
-	id := parts[1]
+	name := parts[1]
 
 	authAppInput := v3.AuthAppInput{}
 	requestBytes, err := ioutil.ReadAll(apiContext.Request.Body)
@@ -87,7 +119,8 @@ func (h *ClusterPipelineHandler) authapp(apiContext *types.APIContext) error {
 	if err := json.Unmarshal(requestBytes, &authAppInput); err != nil {
 		return err
 	}
-	clusterPipeline, err := h.Management.Management.ClusterPipelines(ns).Get(id, metav1.GetOptions{})
+	clusterPipelineLister := h.Management.Management.ClusterPipelines("").Controller().Lister()
+	clusterPipeline, err := clusterPipelineLister.Get(ns, name)
 	if err != nil {
 		return err
 	}
@@ -127,7 +160,7 @@ func (h *ClusterPipelineHandler) authuser(apiContext *types.APIContext) error {
 		return errors.New("invalid ID")
 	}
 	ns := parts[0]
-	id := parts[1]
+	name := parts[1]
 
 	authUserInput := v3.AuthUserInput{}
 	requestBytes, err := ioutil.ReadAll(apiContext.Request.Body)
@@ -138,7 +171,8 @@ func (h *ClusterPipelineHandler) authuser(apiContext *types.APIContext) error {
 		return err
 	}
 
-	clusterPipeline, err := h.Management.Management.ClusterPipelines(ns).Get(id, metav1.GetOptions{})
+	clusterPipelineLister := h.Management.Management.ClusterPipelines("").Controller().Lister()
+	clusterPipeline, err := clusterPipelineLister.Get(ns, name)
 	if err != nil {
 		return err
 	}
@@ -169,9 +203,11 @@ func (h *ClusterPipelineHandler) revokeapp(apiContext *types.APIContext) error {
 		return errors.New("invalid ID")
 	}
 	ns := parts[0]
-	id := parts[1]
+	name := parts[1]
 
-	clusterPipeline, err := h.Management.Management.ClusterPipelines(ns).Get(id, metav1.GetOptions{})
+	clusterPipelines := h.Management.Management.ClusterPipelines(ns)
+	clusterPipelineLister := clusterPipelines.Controller().Lister()
+	clusterPipeline, err := clusterPipelineLister.Get(ns, name)
 	if err != nil {
 		return err
 	}
@@ -234,7 +270,6 @@ func (h *ClusterPipelineHandler) cleanup(clusterName string, apiContext *types.A
 		}
 	}
 
-	//TODO filter this cluster
 	pipelineList, err := h.Management.Management.Pipelines("").List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -245,7 +280,6 @@ func (h *ClusterPipelineHandler) cleanup(clusterName string, apiContext *types.A
 		}
 	}
 
-	//TODO filter this cluster
 	executionList, err := h.Management.Management.PipelineExecutions("").List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -256,7 +290,6 @@ func (h *ClusterPipelineHandler) cleanup(clusterName string, apiContext *types.A
 		}
 	}
 
-	//TODO filter this cluster
 	logList, err := h.Management.Management.PipelineExecutionLogs("").List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -267,7 +300,6 @@ func (h *ClusterPipelineHandler) cleanup(clusterName string, apiContext *types.A
 		}
 	}
 
-	//TODO filter this cluster
 	repoList, err := h.Management.Management.SourceCodeRepositories("").List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -280,110 +312,3 @@ func (h *ClusterPipelineHandler) cleanup(clusterName string, apiContext *types.A
 
 	return nil
 }
-
-/*
-func (h *ClusterPipelineHandler) test_auth(apiContext *types.APIContext) error {
-
-	parts := strings.Split(apiContext.ID, ":")
-	if len(parts) <= 1 {
-		return errors.New("invalid ID")
-	}
-	ns := parts[0]
-	id := parts[1]
-
-	requestBody := make(map[string]interface{})
-	requestBytes, err := ioutil.ReadAll(apiContext.Request.Body)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(requestBytes, &requestBody); err != nil {
-		return err
-	}
-	var code, remoteType, clientID, clientSecret, redirectURL, scheme, host string
-
-	if requestBody["code"] != nil {
-		code = requestBody["code"].(string)
-	}
-	if requestBody["clientId"] != nil {
-		clientID = requestBody["clientId"].(string)
-	}
-	if requestBody["clientSecret"] != nil {
-		clientSecret = requestBody["clientSecret"].(string)
-	}
-	if requestBody["redirectUrl"] != nil {
-		redirectURL = requestBody["redirectUrl"].(string)
-	}
-	if requestBody["scheme"] != nil {
-		scheme = requestBody["scheme"].(string)
-	}
-	if requestBody["host"] != nil {
-		host = requestBody["host"].(string)
-	}
-	if requestBody["type"] != nil {
-		remoteType = requestBody["type"].(string)
-	}
-
-	clusterPipeline, err := h.Management.Management.ClusterPipelines(ns).Get(id, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	if clientID == "" || clientSecret == "" {
-
-		if clusterPipeline.Spec.GithubConfig == nil {
-			return errors.New("github not configured")
-		}
-
-		clientID = clusterPipeline.Spec.GithubConfig.ClientId
-		clientSecret = clusterPipeline.Spec.GithubConfig.ClientSecret
-
-		//oauth and add user
-		userName := apiContext.Request.Header.Get("Impersonate-User")
-		if err := h.test_auth_add_account(clusterPipeline, remoteType, userName, redirectURL, code); err != nil {
-			return err
-		}
-
-	} else {
-		if remoteType == "github" && clusterPipeline.Spec.GithubConfig == nil {
-			clusterPipeline.Spec.GithubConfig = &v3.GithubConfig{
-				Scheme:       scheme,
-				Host:         host,
-				ClientId:     clientID,
-				ClientSecret: clientSecret,
-			}
-		}
-		//oauth and add user
-		userName := apiContext.Request.Header.Get("Impersonate-User")
-		if err := h.test_auth_add_account(clusterPipeline, remoteType, userName, redirectURL, code); err != nil {
-			return err
-		}
-		//update cluster pipeline config
-		if _, err := h.Management.Management.ClusterPipelines(ns).Update(clusterPipeline); err != nil {
-			return err
-		}
-	}
-	apiContext.WriteResponse(200, clusterPipeline)
-	return nil
-}
-
-func (h *ClusterPipelineHandler) test_auth_add_account(clusterPipeline *v3.ClusterPipeline, remoteType string, UserID string, redirectURL string, code string) error {
-
-	account := &v3.RemoteAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "user-" + UserID,
-			Name:      "github-test",
-		},
-		Spec: v3.RemoteAccountSpec{
-
-			Type: "github",
-		},
-	}
-	if UserID == "" {
-		return errors.New("unauth")
-	}
-	account.Spec.UserID = UserID
-	if _, err := h.Management.Management.RemoteAccounts("user-" + UserID).Create(account); err != nil {
-		return err
-	}
-	return nil
-}
-*/

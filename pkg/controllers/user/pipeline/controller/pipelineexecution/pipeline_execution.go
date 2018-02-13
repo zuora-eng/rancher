@@ -10,7 +10,8 @@ import (
 )
 
 type PipelineExecutionLifecycle struct {
-	cluster *config.UserContext
+	cluster            *config.UserContext
+	pipelineExecutions v3.PipelineExecutionInterface
 }
 
 func Register(ctx context.Context, cluster *config.UserContext) {
@@ -22,7 +23,8 @@ func Register(ctx context.Context, cluster *config.UserContext) {
 	pipelineExecutionLogLister := pipelineExecutionLogs.Controller().Lister()
 
 	pipelineExecutionLifecycle := &PipelineExecutionLifecycle{
-		cluster: cluster,
+		pipelineExecutions: pipelineExecutions,
+		cluster:            cluster,
 	}
 	stateSyncer := &ExecutionStateSyncer{
 		pipelineLister:          pipelineLister,
@@ -63,7 +65,7 @@ func (l *PipelineExecutionLifecycle) Create(obj *v3.PipelineExecution) (*v3.Pipe
 }
 func (l *PipelineExecutionLifecycle) errorHistory(obj *v3.PipelineExecution) (*v3.PipelineExecution, error) {
 	obj.Status.State = "error"
-	if _, err := l.cluster.Management.Management.PipelineExecutions(obj.Namespace).Update(obj); err != nil {
+	if _, err := l.pipelineExecutions.Update(obj); err != nil {
 		logrus.Error(err)
 		return obj, err
 	}

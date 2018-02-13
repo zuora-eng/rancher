@@ -36,7 +36,7 @@ func convertStep(pipeline *v3.Pipeline, stageOrdinal int, stepOrdinal int) strin
 		if branchCondition == "except" {
 			branch = fmt.Sprintf(":^(?!(%s))", branch)
 		} else if branchCondition == "all" {
-			branch = "*"
+			branch = "**"
 		}
 		stepContent = fmt.Sprintf("git url: '%s', branch: '%s', credentialsId: '%s'", step.SourceCodeConfig.URL, branch, step.SourceCodeConfig.SourceCodeCredentialName)
 	} else if step.RunScriptConfig != nil {

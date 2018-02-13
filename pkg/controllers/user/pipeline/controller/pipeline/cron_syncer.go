@@ -17,9 +17,10 @@ const (
 )
 
 type CronSyncer struct {
-	pipelineLister     v3.PipelineLister
-	pipelines          v3.PipelineInterface
-	pipelineExecutions v3.PipelineExecutionInterface
+	pipelineLister        v3.PipelineLister
+	pipelines             v3.PipelineInterface
+	pipelineExecutions    v3.PipelineExecutionInterface
+	pipelienExecutionLogs v3.PipelineExecutionLogInterface
 }
 
 func (s *CronSyncer) sync(ctx context.Context, syncInterval time.Duration) {
@@ -76,7 +77,7 @@ func (s *CronSyncer) checkCron(pipeline *v3.Pipeline) {
 			return
 		}
 		pipeline.Status.NextStart = nextStart
-		if err := utils.RunPipeline(s.pipelines, s.pipelineExecutions, pipeline, utils.TriggerTypeCron); err != nil {
+		if _, err := utils.RunPipeline(s.pipelines, s.pipelineExecutions, s.pipelienExecutionLogs, pipeline, utils.TriggerTypeCron); err != nil {
 			logrus.Errorf("Error run pipeline - %v", err)
 			return
 		}
