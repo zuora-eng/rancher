@@ -3,20 +3,15 @@ package pipeline
 import (
 	"strings"
 
-	"fmt"
-	"github.com/kubernetes/kubernetes/pkg/controller/history"
 	"github.com/rancher/norman/api/access"
 	"github.com/rancher/norman/api/handler"
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
-	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
 	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
-	"time"
 )
 
 type Handler struct {

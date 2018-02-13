@@ -125,7 +125,7 @@ func (h *ClusterPipelineHandler) authapp(apiContext *types.APIContext) error {
 		return err
 	}
 
-	if authAppInput.Type == "github" {
+	if authAppInput.SourceCodeType == "github" {
 		clusterPipeline.Spec.GithubConfig = &v3.GithubClusterConfig{
 			TLS:          authAppInput.TLS,
 			Host:         authAppInput.Host,
@@ -136,7 +136,7 @@ func (h *ClusterPipelineHandler) authapp(apiContext *types.APIContext) error {
 	}
 	//oauth and add user
 	userName := apiContext.Request.Header.Get("Impersonate-User")
-	if _, err := h.auth_add_account(clusterPipeline, authAppInput.Type, userName, authAppInput.RedirectURL, authAppInput.Code); err != nil {
+	if _, err := h.auth_add_account(clusterPipeline, authAppInput.SourceCodeType, userName, authAppInput.RedirectURL, authAppInput.Code); err != nil {
 		return err
 	}
 	//update cluster pipeline config
@@ -177,14 +177,14 @@ func (h *ClusterPipelineHandler) authuser(apiContext *types.APIContext) error {
 		return err
 	}
 
-	if authUserInput.Type == "github" && clusterPipeline.Spec.GithubConfig == nil {
+	if authUserInput.SourceCodeType == "github" && clusterPipeline.Spec.GithubConfig == nil {
 		return errors.New("github oauth app is not configured")
 	}
 
 	//oauth and add user
 	userName := apiContext.Request.Header.Get("Impersonate-User")
-	logrus.Debugf("try auth with %v,%v,%v,%v,%v", clusterPipeline, authUserInput.Type, userName, authUserInput.RedirectURL, authUserInput.Code)
-	account, err := h.auth_add_account(clusterPipeline, authUserInput.Type, userName, authUserInput.RedirectURL, authUserInput.Code)
+	logrus.Debugf("try auth with %v,%v,%v,%v,%v", clusterPipeline, authUserInput.SourceCodeType, userName, authUserInput.RedirectURL, authUserInput.Code)
+	account, err := h.auth_add_account(clusterPipeline, authUserInput.SourceCodeType, userName, authUserInput.RedirectURL, authUserInput.Code)
 	if err != nil {
 		return err
 	}
