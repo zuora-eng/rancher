@@ -2,10 +2,11 @@ package jenkins
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"github.com/rancher/rancher/pkg/controllers/user/pipeline/utils"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
+	"regexp"
+	"strings"
 )
 
 func ConvertPipelineToJenkinsPipeline(pipeline *v3.Pipeline) PipelineJob {
@@ -44,7 +45,7 @@ func convertStep(pipeline *v3.Pipeline, stageOrdinal int, stepOrdinal int) strin
 	} else if step.RunScriptConfig != nil {
 		stepContent = fmt.Sprintf(`sh """%s"""`, step.RunScriptConfig.ShellScript)
 	} else if step.PublishImageConfig != nil {
-		stepContent = fmt.Sprintf(`sh """"echo dopublishimage"""`)
+		stepContent = fmt.Sprintf(`sh """/usr/local/bin/dockerd-entrypoint.sh /bin/drone-docker"""`)
 	} else {
 		return ""
 	}
@@ -85,7 +86,9 @@ func convertPipeline(pipeline *v3.Pipeline) string {
 			} else if step.PublishImageConfig != nil {
 				registry, repo, tag := utils.SplitImageTag(step.PublishImageConfig.Tag)
 				//TODO key-key mapping instead of registry-key mapping
-				secretName := fmt.Sprintf("%s-%s", pipeline.Spec.ProjectName, base64.StdEncoding.EncodeToString([]byte(registry)))
+				reg, _ := regexp.Compile("[^a-zA-Z0-9]+")
+				proceccedRegistry := strings.ToLower(reg.ReplaceAllString(registry, ""))
+				secretName := fmt.Sprintf("%s-%s", pipeline.Namespace, proceccedRegistry)
 				image = "plugins/docker"
 				publishoption := `, privileged: true, envVars: [
 			envVar(key: 'PLUGIN_REPO', value: '%s/%s'),
