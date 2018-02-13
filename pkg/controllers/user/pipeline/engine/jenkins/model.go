@@ -303,14 +303,14 @@ type JenkinsWFBuildInfo struct {
 }
 
 type JenkinsStage struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	ExecNode        string `json:"execNode"`
-	Status          string `json:"status"`
-	StartTimeMillis int64  `json:"startTimeMillis"`
-	EndTimeMillis   int64  `json:"endTimeMillis"`
-	DurationMillis  int64  `json:"durationMillis"`
-	Error           string `json:"error"`
+	ID              string           `json:"id"`
+	Name            string           `json:"name"`
+	ExecNode        string           `json:"execNode"`
+	Status          string           `json:"status"`
+	StartTimeMillis int64            `json:"startTimeMillis"`
+	EndTimeMillis   int64            `json:"endTimeMillis"`
+	DurationMillis  int64            `json:"durationMillis"`
+	Error           JenkinsNodeError `json:"error"`
 }
 
 type JenkinsWFNodeInfo struct {
