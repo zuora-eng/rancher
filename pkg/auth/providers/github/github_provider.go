@@ -111,8 +111,8 @@ func (g *ghProvider) saveGithubConfig(config *v3.GithubConfig) error {
 	return nil
 }
 
-func (g *ghProvider) AuthenticateUser(input interface{}) (v3.Principal, []v3.Principal, string, error) {
-	login, ok := input.(*v3public.GithubLogin)
+func (g *ghProvider) AuthenticateUser(input interface{}) (v3.Principal, []v3.Principal, map[string]string, error) {
+	login, ok := input.(*v3public.CodeBasedLogin)
 	if !ok {
 		return v3.Principal{}, nil, "", errors.New("unexpected input type")
 	}
@@ -120,7 +120,7 @@ func (g *ghProvider) AuthenticateUser(input interface{}) (v3.Principal, []v3.Pri
 	return g.LoginUser(login, nil, false)
 }
 
-func (g *ghProvider) LoginUser(githubCredential *v3public.GithubLogin, config *v3.GithubConfig, test bool) (v3.Principal, []v3.Principal, string, error) {
+func (g *ghProvider) LoginUser(githubCredential *v3public.CodeBasedLogin, config *v3.GithubConfig, test bool) (v3.Principal, []v3.Principal, map[string]string, error) {
 	var groupPrincipals []v3.Principal
 	var userPrincipal v3.Principal
 	var err error

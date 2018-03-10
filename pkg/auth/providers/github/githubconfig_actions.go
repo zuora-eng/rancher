@@ -92,7 +92,7 @@ func (g *ghProvider) testAndApply(actionName string, action *types.Action, reque
 	}
 
 	githubConfig = githubConfigApplyInput.GithubConfig
-	githubLogin := &v3public.GithubLogin{
+	githubLogin := &v3public.CodeBasedLogin{
 		Code: githubConfigApplyInput.Code,
 	}
 
