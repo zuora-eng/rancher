@@ -37,7 +37,7 @@ type GithubProvider struct {
 	RedirectURL string `json:"redirectUrl"`
 }
 
-type GithubLogin struct {
+type CodeBasedLogin struct {
 	GenericLogin `json:",inline"`
 	Code         string `json:"code" norman:"type=string,required"`
 }
@@ -51,6 +51,14 @@ type ActiveDirectoryProvider struct {
 }
 
 type AzureADProvider struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	AuthProvider      `json:",inline"`
+
+	RedirectURL string `json:"redirectUrl"`
+}
+
+type SamlProvider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	AuthProvider      `json:",inline"`
@@ -73,4 +81,8 @@ type FreeIpaProvider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	AuthProvider      `json:",inline"`
+}
+
+type PingProvider struct {
+	SamlProvider `json:",inline"`
 }

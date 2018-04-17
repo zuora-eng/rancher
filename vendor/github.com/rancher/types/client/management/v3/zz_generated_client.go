@@ -32,6 +32,7 @@ type Client struct {
 	User                                    UserOperations
 	AuthConfig                              AuthConfigOperations
 	LdapConfig                              LdapConfigOperations
+	SamlConfig                              SamlConfigOperations
 	Token                                   TokenOperations
 	DynamicSchema                           DynamicSchemaOperations
 	Preference                              PreferenceOperations
@@ -87,6 +88,7 @@ func NewClient(opts *clientbase.ClientOpts) (*Client, error) {
 	client.User = newUserClient(client)
 	client.AuthConfig = newAuthConfigClient(client)
 	client.LdapConfig = newLdapConfigClient(client)
+	client.SamlConfig = newSamlConfigClient(client)
 	client.Token = newTokenClient(client)
 	client.DynamicSchema = newDynamicSchemaClient(client)
 	client.Preference = newPreferenceClient(client)

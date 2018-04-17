@@ -48,14 +48,14 @@ func authProvidersTypes(schemas *types.Schemas) *types.Schemas {
 			schema.BaseType = "authProvider"
 			schema.ResourceActions = map[string]types.Action{
 				"login": {
-					Input:  "githubLogin",
+					Input:  "codeBasedLogin",
 					Output: "token",
 				},
 			}
 			schema.CollectionMethods = []string{}
 			schema.ResourceMethods = []string{http.MethodGet}
 		}).
-		MustImport(&PublicVersion, v3public.GithubLogin{}).
+		MustImport(&PublicVersion, v3public.CodeBasedLogin{}).
 		// Active Directory provider
 		MustImportAndCustomize(&PublicVersion, v3public.ActiveDirectoryProvider{}, func(schema *types.Schema) {
 			schema.BaseType = "authProvider"
@@ -81,6 +81,19 @@ func authProvidersTypes(schemas *types.Schemas) *types.Schemas {
 			schema.ResourceMethods = []string{http.MethodGet}
 		}).
 		MustImport(&PublicVersion, v3public.AzureADLogin{}).
+		// Saml provider
+		MustImportAndCustomize(&PublicVersion, v3public.PingProvider{}, func(schema *types.Schema) {
+			schema.BaseType = "authProvider"
+			schema.ResourceActions = map[string]types.Action{
+				"login": {
+					Input:  "codeBasedLogin",
+					Output: "token",
+				},
+			}
+			schema.CollectionMethods = []string{}
+			schema.ResourceMethods = []string{http.MethodGet}
+		}).
+		MustImport(&PublicVersion, v3public.CodeBasedLogin{}).
 		// OpenLdap provider
 		MustImportAndCustomize(&PublicVersion, v3public.OpenLdapProvider{}, func(schema *types.Schema) {
 			schema.BaseType = "authProvider"
@@ -105,5 +118,4 @@ func authProvidersTypes(schemas *types.Schemas) *types.Schemas {
 			schema.CollectionMethods = []string{}
 			schema.ResourceMethods = []string{http.MethodGet}
 		})
-
 }

@@ -40,6 +40,7 @@ type Interface interface {
 	UsersGetter
 	AuthConfigsGetter
 	LdapConfigsGetter
+	SamlConfigsGetter
 	TokensGetter
 	DynamicSchemasGetter
 	PreferencesGetter
@@ -91,6 +92,7 @@ type Client struct {
 	userControllers                                    map[string]UserController
 	authConfigControllers                              map[string]AuthConfigController
 	ldapConfigControllers                              map[string]LdapConfigController
+	samlConfigControllers                              map[string]SamlConfigController
 	tokenControllers                                   map[string]TokenController
 	dynamicSchemaControllers                           map[string]DynamicSchemaController
 	preferenceControllers                              map[string]PreferenceController
@@ -151,6 +153,7 @@ func NewForConfig(config rest.Config) (Interface, error) {
 		userControllers:                                    map[string]UserController{},
 		authConfigControllers:                              map[string]AuthConfigController{},
 		ldapConfigControllers:                              map[string]LdapConfigController{},
+		samlConfigControllers:                              map[string]SamlConfigController{},
 		tokenControllers:                                   map[string]TokenController{},
 		dynamicSchemaControllers:                           map[string]DynamicSchemaController{},
 		preferenceControllers:                              map[string]PreferenceController{},
@@ -504,6 +507,19 @@ type LdapConfigsGetter interface {
 func (c *Client) LdapConfigs(namespace string) LdapConfigInterface {
 	objectClient := objectclient.NewObjectClient(namespace, c.restClient, &LdapConfigResource, LdapConfigGroupVersionKind, ldapConfigFactory{})
 	return &ldapConfigClient{
+		ns:           namespace,
+		client:       c,
+		objectClient: objectClient,
+	}
+}
+
+type SamlConfigsGetter interface {
+	SamlConfigs(namespace string) SamlConfigInterface
+}
+
+func (c *Client) SamlConfigs(namespace string) SamlConfigInterface {
+	objectClient := objectclient.NewObjectClient(namespace, c.restClient, &SamlConfigResource, SamlConfigGroupVersionKind, samlConfigFactory{})
+	return &samlConfigClient{
 		ns:           namespace,
 		client:       c,
 		objectClient: objectClient,

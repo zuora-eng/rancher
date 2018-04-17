@@ -241,9 +241,10 @@ type FreeIpaTestAndApplyInput struct {
 }
 
 type SamlConfig struct {
-	metav1.TypeMeta    `json:",inline"`
-	metav1.ObjectMeta  `json:"metadata,omitempty"`
-	AuthConfig         `json:",inline" mapstructure:",squash"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	AuthConfig        `json:",inline" mapstructure:",squash"`
+
 	IDPMetadataURL     string `json:"idpMetadataUrl"`
 	IDPMetadataContent string `json:"idpMetadataContent" norman:"required"`
 	SPSelfSignedCert   string `json:"spCert"             norman:"required"`

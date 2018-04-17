@@ -83,6 +83,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&AuthConfigList{},
 		&LdapConfig{},
 		&LdapConfigList{},
+		&SamlConfig{},
+		&SamlConfigList{},
 		&Token{},
 		&TokenList{},
 		&DynamicSchema{},
