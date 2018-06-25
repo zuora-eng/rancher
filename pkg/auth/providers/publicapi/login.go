@@ -85,7 +85,6 @@ func (h *loginHandler) createLoginToken(request *types.APIContext) (v3.Token, st
 	var userPrincipal v3.Principal
 	var groupPrincipals []v3.Principal
 	providerInfo := make(map[string]string)
-	fmt.Printf("\nHERE for creating login request for :%v\n", request.Type)
 	logrus.Debugf("Create Token Invoked")
 
 	bytes, err := ioutil.ReadAll(request.Request.Body)
@@ -145,7 +144,10 @@ func (h *loginHandler) createLoginToken(request *types.APIContext) (v3.Token, st
 			return v3.Token{}, "", err
 		}
 	} else {
-		saml.PerformAuthRedirect(providerName, request)
+		err := saml.PerformAuthRedirect(providerName, request, h.tokenMGR)
+		if err != nil {
+			return v3.Token{}, "saml", nil
+		}
 		return v3.Token{}, "saml", nil
 	}
 

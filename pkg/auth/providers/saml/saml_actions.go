@@ -57,7 +57,10 @@ func (s *Provider) configureTest(actionName string, action *types.Action, reques
 	annotations["configured"] = "true"
 	samlConfig.Annotations = annotations
 	s.saveSamlConfig(samlConfig)
-	s.SamlClient.config = samlConfig
+
+	p := SamlProviders[s.Name]
+	p.SamlClient.config = samlConfig
+	p.Request = request
 
 	request.WriteResponse(http.StatusOK, data)
 	return nil
@@ -82,13 +85,14 @@ func (s *Provider) testAndApply(actionName string, action *types.Action, request
 	}
 
 	samlConfig = samlConfigApplyInput.SamlConfig
-	s.Request = request
+	p := SamlProviders[s.Name]
+	p.SamlClient.config = &samlConfig
+	p.Request = request
 	redirectURL := s.formSamlRedirectURL(&samlConfig)
 
 	http.Redirect(request.Response, request.Request, redirectURL, http.StatusFound)
 
-	fmt.Printf("\n\nYES it's here to set\n\n")
-	samlConfig.Enabled = samlConfigApplyInput.Enabled
+	//samlConfig.Enabled = samlConfigApplyInput.Enabled
 	err := s.saveSamlConfig(&samlConfig)
 	if err != nil {
 		return httperror.NewAPIError(httperror.ServerError, fmt.Sprintf("SAML: Failed to save saml config: %v", err))
@@ -96,41 +100,3 @@ func (s *Provider) testAndApply(actionName string, action *types.Action, request
 
 	return nil
 }
-
-//func (s *Provider) testAndApply(actionName string, action *types.Action, request *types.APIContext) error {
-//	var samlConfig v3.SamlConfig
-//	samlConfigApplyInput := &v3.SamlConfigApplyInput{}
-//
-//	if err := json.NewDecoder(request.Request.Body).Decode(samlConfigApplyInput); err != nil {
-//		return httperror.NewAPIError(httperror.InvalidBodyContent,
-//			fmt.Sprintf("SAML: Failed to parse body: %v", err))
-//	}
-//
-//	samlConfig = samlConfigApplyInput.SamlConfig
-//	samlLogin := &v3public.CodeBasedLogin{
-//		Code: samlConfigApplyInput.Code,
-//	}
-//
-//	//Call provider to testLogin
-//	userPrincipal, groupPrincipals, providerInfo, err := s.loginUser(samlLogin, &samlConfig, true)
-//	if err != nil {
-//		if httperror.IsAPIError(err) {
-//			return err
-//		}
-//		return fmt.Errorf("SAML: server error while authenticating: %v", err)
-//	}
-//
-//	//if this works, save samlConfig CR adding enabled flag
-//	user, err := s.UserMGR.SetPrincipalOnCurrentUser(request, userPrincipal)
-//	if err != nil {
-//		return err
-//	}
-//
-//	samlConfig.Enabled = samlConfigApplyInput.Enabled
-//	err = s.saveSamlConfig(&samlConfig)
-//	if err != nil {
-//		return httperror.NewAPIError(httperror.ServerError, fmt.Sprintf("SAML: Failed to save saml config: %v", err))
-//	}
-//
-//	return tokens.CreateTokenAndSetCookie(user.Name, userPrincipal, groupPrincipals, providerInfo, 0, "Token via Saml Configuration", request)
-//}

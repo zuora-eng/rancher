@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/crewjam/saml"
+	"github.com/crewjam/saml/logger"
 	"github.com/crewjam/saml/samlsp"
 	"github.com/gorilla/mux"
 	"github.com/rancher/rancher/pkg/auth/tokens"
@@ -23,10 +24,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//SamlClient implements a client for the saml library
-type SamlClient struct {
+//Client implements a client for the saml library
+type Client struct {
 	config *v3.SamlConfig
-	//SamlSP *samlsp.Middleware
+	SamlSP *saml.ServiceProvider
 }
 
 type IDPMetadata struct {
@@ -140,15 +141,17 @@ func InitializeSamlClient(configToSet *v3.SamlConfig, name string) error {
 		return fmt.Errorf("SAML: error in parsing URL")
 	}
 
-	samlspInstance, err := samlsp.New(samlsp.Options{
-		IDPMetadataURL: nil,
-		URL:            *actURL,
-		Key:            privKey,
-		Certificate:    cert,
-	})
+	metadataURL := *actURL
+	metadataURL.Path = metadataURL.Path + "/saml/metadata"
+	acsURL := *actURL
+	acsURL.Path = acsURL.Path + "/saml/acs"
 
-	if err != nil {
-		log.Errorf("SAML: Error initializing SAML SP instance from the config %v, error %v", configToSet, err)
+	sp := saml.ServiceProvider{
+		Key:         privKey,
+		Certificate: cert,
+		MetadataURL: metadataURL,
+		AcsURL:      acsURL,
+		Logger:      logger.DefaultLogger,
 	}
 
 	// XML unmarshal throws an error for IdP Metadata cacheDuration field, as it's of type xml Duration. Using a separate struct for unmarshaling for now
@@ -162,12 +165,12 @@ func InitializeSamlClient(configToSet *v3.SamlConfig, name string) error {
 		if err != nil {
 			return fmt.Errorf("SAML: cannot initialize saml SP, cannot get IDP Metadata  from the url %v, error %v", idpURL, err)
 		}
-		samlspInstance.ServiceProvider.IDPMetadata = &saml.EntityDescriptor{}
+		sp.IDPMetadata = &saml.EntityDescriptor{}
 		if err := xml.NewDecoder(resp.Body).Decode(idm); err != nil {
 			return fmt.Errorf("SAML: cannot initialize saml SP, cannot decode IDP Metadata xml from the config %v, error %v", configToSet, err)
 		}
 	} else if configToSet.IDPMetadataContent != "" {
-		samlspInstance.ServiceProvider.IDPMetadata = &saml.EntityDescriptor{}
+		sp.IDPMetadata = &saml.EntityDescriptor{}
 		if err := xml.NewDecoder(strings.NewReader(configToSet.IDPMetadataContent)).Decode(idm); err != nil {
 			return fmt.Errorf("SAML: cannot initialize saml SP, cannot decode IDP Metadata content from the config %v, error %v", configToSet, err)
 		}
@@ -177,35 +180,30 @@ func InitializeSamlClient(configToSet *v3.SamlConfig, name string) error {
 			return fmt.Errorf("SAML: cannot initialize saml SP, cannot read IDP Metadata file from the config %v, error %v", configToSet, err)
 		}
 		metadataReader := bufio.NewReader(file)
-		samlspInstance.ServiceProvider.IDPMetadata = &saml.EntityDescriptor{}
+		sp.IDPMetadata = &saml.EntityDescriptor{}
 		if err := xml.NewDecoder(metadataReader).Decode(idm); err != nil {
 			return fmt.Errorf("SAML: cannot initialize saml SP, cannot decode IDP Metadata xml from the config %v, error %v", configToSet, err)
 		}
 	}
 
-	samlspInstance.ServiceProvider.IDPMetadata.XMLName = idm.XMLName
-	samlspInstance.ServiceProvider.IDPMetadata.ValidUntil = idm.ValidUntil
-	samlspInstance.ServiceProvider.IDPMetadata.EntityID = idm.EntityID
-	samlspInstance.ServiceProvider.IDPMetadata.SPSSODescriptors = idm.SPSSODescriptors
-	samlspInstance.ServiceProvider.IDPMetadata.IDPSSODescriptors = idm.IDPSSODescriptors
+	sp.IDPMetadata.XMLName = idm.XMLName
+	sp.IDPMetadata.ValidUntil = idm.ValidUntil
+	sp.IDPMetadata.EntityID = idm.EntityID
+	sp.IDPMetadata.SPSSODescriptors = idm.SPSSODescriptors
+	sp.IDPMetadata.IDPSSODescriptors = idm.IDPSSODescriptors
+	provider.SamlClient.SamlSP = &sp
 
-	//binding := saml.HTTPRedirectBinding
-	//bindingLocation := samlspInstance.ServiceProvider.GetSSOBindingLocation(binding)
-	//if bindingLocation == "" {
-	//	binding = saml.HTTPPostBinding
-	//	bindingLocation = samlspInstance.ServiceProvider.GetSSOBindingLocation(binding)
-	//}
-	//
-	//if p, ok := SamlProviders[name]; ok {
-	//	if p != nil {
-	//		p.RedirectURL = bindingLocation
-	//	}
-	//}
+	cookieStore := samlsp.ClientCookies{
+		ServiceProvider: &sp,
+		Name:            "token",
+		Domain:          actURL.Host,
+	}
+	provider.ClientState = &cookieStore
 
 	if name == PingName {
-		Root.Get("PingLogin").Handler(samlspInstance.RequireAccount(http.HandlerFunc(provider.HandleSamlPost)))
-		Root.Get("PingACS").Handler(samlspInstance)
-		Root.Get("PingMetadata").Handler(samlspInstance)
+		Root.Get("PingLogin").HandlerFunc(provider.HandleSamlLogin)
+		Root.Get("PingACS").HandlerFunc(provider.ServeHTTP)
+		Root.Get("PingMetadata").HandlerFunc(provider.ServeHTTP)
 	}
 	return nil
 }
@@ -220,6 +218,7 @@ func PingHandlers() *mux.Router {
 	if provider == nil {
 		return Root
 	}
+
 	storedSamlConfig, err := provider.getSamlConfig()
 	if err != nil {
 		log.Errorf("SAML(PingHandlers): error in getting config: %v", err)
@@ -232,7 +231,7 @@ func PingHandlers() *mux.Router {
 	return Root
 }
 
-func (samlClient *SamlClient) getSamlIdentities(samlData map[string][]string) ([]Account, error) {
+func (samlClient *Client) getSamlIdentities(samlData map[string][]string) ([]Account, error) {
 	//look for saml attributes set in the config
 	var samlAccts []Account
 
@@ -269,34 +268,29 @@ func (samlClient *SamlClient) getSamlIdentities(samlData map[string][]string) ([
 	return samlAccts, nil
 }
 
-//HandleSamlPost handles the SAML Post
-func (s *Provider) HandleSamlPost(w http.ResponseWriter, r *http.Request) {
+// HandleSamlAssertion processes/handles the assertion obtained by the POST to /saml/acs from IdP
+func (s *Provider) HandleSamlAssertion(w http.ResponseWriter, r *http.Request, assertion *saml.Assertion) {
 	var groupPrincipals []v3.Principal
 	var userPrincipal v3.Principal
-	log.Debugf("SAML: HandleSamlPost: request url is %v", r.URL.String())
-	cookie, _ := r.Cookie("token")
-	log.Debugf("SAML: token cookie: %v", cookie)
 
-	_, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		//failed to get the url query parameters
-		log.Errorf("SAML: HandleSamlPost failed to parse query params with error %v", err)
-		w.WriteHeader(500)
-		w.Write([]byte("Server error while authenticating"))
-		return
+	if relayState := r.Form.Get("RelayState"); relayState != "" {
+		// delete the cookie
+		s.ClientState.DeleteState(w, r, relayState)
 	}
 
-	// SAML library middleware, on a request with valid session, returns the assertion attributes within request's context
 	samlData := make(map[string][]string)
 
-	authToken := samlsp.Token(r.Context())
-	if authToken == nil {
-		log.Errorf("SAML: No assertions returned by IdP %v", err)
-		w.WriteHeader(403)
-		w.Write([]byte("No assertions returned by IdP"))
-		return
+	for _, attributeStatement := range assertion.AttributeStatements {
+		for _, attr := range attributeStatement.Attributes {
+			attrName := attr.FriendlyName
+			if attrName == "" {
+				attrName = attr.Name
+			}
+			for _, value := range attr.Values {
+				samlData[attrName] = append(samlData[attrName], value.Value)
+			}
+		}
 	}
-	samlData = authToken.Attributes
 
 	config, err := s.getSamlConfig()
 	if err != nil {
@@ -347,7 +341,20 @@ func (s *Provider) HandleSamlPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		tokens.CreateTokenAndSetCookie(user.Name, userPrincipal, groupPrincipals, map[string]string{}, 0, "Token via Saml Configuration", s.Request)
+		config.Enabled = true
+		err = s.saveSamlConfig(config)
+		if err != nil {
+			log.Errorf("SAML: Error saving SAML config %v", err)
+			w.WriteHeader(500)
+			w.Write([]byte(" Error saving SAML config"))
+			return
+		}
+
+		isSecure := false
+		if r.URL.Scheme == "https" {
+			isSecure = true
+		}
+		setRancherToken(w, r, s.TokenMGR, user.Name, userPrincipal, groupPrincipals, isSecure)
 		return
 	}
 
@@ -363,48 +370,30 @@ func (s *Provider) HandleSamlPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rToken, err := tokens.NewLoginToken(user.Name, userPrincipal, groupPrincipals, map[string]string{}, 0, "")
+	if p, ok := SamlProviders[s.Name]; ok {
+		setRancherToken(w, r, p.PublicTokenMGR, user.Name, userPrincipal, groupPrincipals, true)
+	}
+
+	return
+}
+
+func setRancherToken(w http.ResponseWriter, r *http.Request, tokenMGR *tokens.Manager, userID string, userPrincipal v3.Principal,
+	groupPrincipals []v3.Principal, isSecure bool) {
+	rToken, err := tokenMGR.NewLoginToken(userID, userPrincipal, groupPrincipals, map[string]string{}, 0, "")
+	if err != nil {
+		log.Errorf("Failed creating token with error: %v", err)
+		w.WriteHeader(500)
+		w.Write([]byte("Server error while authenticating"))
+		return
+	}
 	tokenCookie := &http.Cookie{
 		Name:     "R_SESS",
 		Value:    rToken.ObjectMeta.Name + ":" + rToken.Token,
-		Secure:   true,
+		Secure:   isSecure,
 		Path:     "/",
 		HttpOnly: true,
 	}
 	http.SetCookie(w, tokenCookie)
+	w.WriteHeader(http.StatusOK)
 	return
 }
-
-////HandleSamlPost handles the SAML Post
-//func (s *Provider) HandleSamlPost(w http.ResponseWriter, r *http.Request) {
-//	log.Debugf("SAML: HandleSamlPost: request url is %v", r.URL.String())
-//	cookie, _ := r.Cookie("token")
-//	log.Debugf("SAML: token cookie: %v", cookie)
-//
-//	query, err := url.ParseQuery(r.URL.RawQuery)
-//	if err != nil {
-//		//failed to get the url query parameters
-//		log.Errorf("SAML: HandleSamlPost failed to parse query params with error %v", err)
-//		w.WriteHeader(500)
-//		w.Write([]byte("SAML: Failed to get auth query parameters"))
-//		return
-//	}
-//
-//	// SAML library middleware, on a request with valid session, returns the assertion attributes within request's context
-//	samlData := make(map[string][]string)
-//	samlData = samlsp.Token(r.Context()).Attributes
-//	log.Debugf("SAML: HandleSamlPost: Received a SAML POST data %v", samlData)
-//	mapB, err := json.Marshal(samlData)
-//	if err != nil {
-//		//failed to get the saml data
-//		log.Debugf("SAML: HandleSamlPost failed to unmarshal saml data with error %v", err)
-//		w.WriteHeader(500)
-//		w.Write([]byte(err.Error()))
-//		return
-//	}
-//
-//	redirectURL := s.getSamlRedirectURL(query.Get(redirectBackBase), query.Get(redirectBackPath))
-//	w.Header().Add("code", string(mapB))
-//	log.Debugf("SAML: redirecting the user to %v", redirectURL)
-//	http.Redirect(w, r, redirectURL, http.StatusFound)
-//}

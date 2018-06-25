@@ -73,7 +73,6 @@ func (p *adProvider) testAndApply(actionName string, action *types.Action, reque
 		return err
 	}
 
-	fmt.Printf("\nuserPrincipal: %v\n", userPrincipal)
 	//if this works, save adConfig CR adding enabled flag
 	config.Enabled = configApplyInput.Enabled
 	err = p.saveActiveDirectoryConfig(config)

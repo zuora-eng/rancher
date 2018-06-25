@@ -76,7 +76,7 @@ func Configure(ctx context.Context, mgmt *config.ScaledContext) {
 	providersByType[client.FreeIpaConfigType] = p
 	providersByType[publicclient.FreeIpaProviderType] = p
 
-	p = saml.Configure(ctx, mgmt, userMGR, saml.PingName)
+	p = saml.Configure(ctx, mgmt, userMGR, tokenMGR, saml.PingName)
 	providers[saml.PingName] = p
 	providersByType[client.PingConfigType] = p
 	providersByType[publicclient.PingProviderType] = p

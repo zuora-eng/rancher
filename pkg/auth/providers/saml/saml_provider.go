@@ -12,6 +12,7 @@ import (
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/auth/providers/common"
+	"github.com/rancher/rancher/pkg/auth/tokens"
 	"github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/apis/management.cattle.io/v3public"
 	"github.com/rancher/types/client/management/v3"
@@ -21,6 +22,7 @@ import (
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/crewjam/saml/samlsp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -28,25 +30,28 @@ import (
 const PingName = "ping"
 
 type Provider struct {
-	Ctx         context.Context
-	AuthConfigs v3.AuthConfigInterface
-	UserMGR     user.Manager
-	SamlClient  *SamlClient
-	Name        string
-	UserType    string
-	GroupType   string
-	RedirectURL string
-	Request     *types.APIContext
+	Ctx            context.Context
+	AuthConfigs    v3.AuthConfigInterface
+	UserMGR        user.Manager
+	TokenMGR       *tokens.Manager
+	PublicTokenMGR *tokens.Manager
+	SamlClient     *Client
+	Name           string
+	UserType       string
+	GroupType      string
+	Request        *types.APIContext
+	ClientState    samlsp.ClientState
 }
 
 var SamlProviders = make(map[string]*Provider)
 
-func Configure(ctx context.Context, mgmtCtx *config.ScaledContext, userMGR user.Manager, name string) common.AuthProvider {
-	samlClient := &SamlClient{}
+func Configure(ctx context.Context, mgmtCtx *config.ScaledContext, userMGR user.Manager, tokenMGR *tokens.Manager, name string) common.AuthProvider {
+	samlClient := &Client{}
 	samlp := &Provider{
 		Ctx:         ctx,
 		AuthConfigs: mgmtCtx.Management.AuthConfigs(""),
 		UserMGR:     userMGR,
+		TokenMGR:    tokenMGR,
 		SamlClient:  samlClient,
 		Name:        name,
 		UserType:    name + "_user",
@@ -82,21 +87,21 @@ func (s *Provider) AuthenticateUser(input interface{}) (v3.Principal, []v3.Princ
 	return s.loginUser(login, nil, false)
 }
 
-func PerformAuthRedirect(name string, apiContext *types.APIContext) string {
+func PerformAuthRedirect(name string, apiContext *types.APIContext, publicTokenMGR *tokens.Manager) error {
 	var redirectURL string
 
 	if provider, ok := SamlProviders[name]; ok {
-
+		provider.PublicTokenMGR = publicTokenMGR
 		savedConfig, err := provider.getSamlConfig()
 		if err != nil {
-			fmt.Errorf("\nERROR!!: %v\n", err)
+			return fmt.Errorf("error in redirecting: %v", err)
 		}
 
 		redirectURL = provider.formSamlRedirectURL(savedConfig)
 	}
 
 	http.Redirect(apiContext.Response, apiContext.Request, redirectURL, http.StatusFound)
-	return ""
+	return nil
 }
 
 func (s *Provider) loginUser(samlCredential *v3public.CodeBasedLogin, config *v3.SamlConfig, test bool) (v3.Principal, []v3.Principal, map[string]string, error) {
