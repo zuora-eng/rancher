@@ -241,9 +241,10 @@ func (h *UpgradeAwareHandler) tryUpgrade(w http.ResponseWriter, req *http.Reques
 	}
 
 	var (
-		backendConn net.Conn
-		rawResponse []byte
-		err         error
+		backendConn     net.Conn
+		rawResponse     []byte
+		rawResponseCode int
+		err             error
 	)
 
 	location := *h.Location
