@@ -244,9 +244,8 @@ func (c *Controller) createOrCheckNodes(nodePool *v3.NodePool, simulate bool) (b
 
 	for len(nodes) > quantity {
 		sort.Slice(nodes, func(i, j int) bool {
-			return nodes[i].Spec.RequestedHostname < nodes[j].Spec.RequestedHostname
+			return strconv.FormatBool(nodes[i].Spec.InternalNodeSpec.Unschedulable) < strconv.FormatBool(nodes[j].Spec.InternalNodeSpec.Unschedulable)
 		})
-
 		toDelete := nodes[len(nodes)-1]
 
 		changed = true
