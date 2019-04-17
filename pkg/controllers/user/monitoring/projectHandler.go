@@ -30,6 +30,10 @@ func (ph *projectHandler) sync(key string, project *mgmtv3.Project) (runtime.Obj
 		return project, nil
 	}
 
+	if !mgmtv3.NamespaceBackedResource.IsTrue(project) || !mgmtv3.ProjectConditionInitialRolesPopulated.IsTrue(project) {
+		return project, nil
+	}
+
 	clusterID := project.Spec.ClusterName
 	cluster, err := ph.cattleClusterClient.Get(clusterID, metav1.GetOptions{})
 	if err != nil {
@@ -41,7 +45,11 @@ func (ph *projectHandler) sync(key string, project *mgmtv3.Project) (runtime.Obj
 	src := project
 	cpy := src.DeepCopy()
 
-	err = ph.doSync(cpy, clusterName)
+	err = ph.doRevertSync(cpy, clusterName)
+	if err == nil {
+		err = ph.doProjectGraphsSync(cpy)
+	}
+
 	if !reflect.DeepEqual(cpy, src) {
 		updated, updateErr := ph.cattleProjectClient.Update(cpy)
 		if updateErr != nil {
@@ -58,28 +66,34 @@ func (ph *projectHandler) sync(key string, project *mgmtv3.Project) (runtime.Obj
 	return cpy, err
 }
 
-func (ph *projectHandler) doSync(project *mgmtv3.Project, clusterName string) error {
-	if !mgmtv3.NamespaceBackedResource.IsTrue(project) && !mgmtv3.ProjectConditionInitialRolesPopulated.IsTrue(project) {
-		return nil
-	}
-	_, err := mgmtv3.ProjectConditionMetricExpressionDeployed.DoUntilTrue(project, func() (runtime.Object, error) {
-		projectName := fmt.Sprintf("%s:%s", project.Spec.ClusterName, project.Name)
+// doRevertSync reverts all previous enabling Project Monitoring
+func (ph *projectHandler) doRevertSync(project *mgmtv3.Project, clusterName string) error {
+	// drop project monitoring from user cluster
+	if project.Spec.EnableProjectMonitoring {
+		project.Spec.EnableProjectMonitoring = false
+	} else if enabledStatus := mgmtv3.ProjectConditionMonitoringEnabled.GetStatus(project); enabledStatus != "" && enabledStatus != "False" {
+		appName, appTargetNamespace := monitoring.ProjectMonitoringInfo(project.Name)
 
-		for _, graph := range preDefinedProjectGraph {
-			newObj := graph.DeepCopy()
-			newObj.Namespace = project.Name
-			newObj.Spec.ProjectName = projectName
-			if _, err := ph.app.cattleProjectGraphClient.Create(newObj); err != nil && !apierrors.IsAlreadyExists(err) {
-				return project, err
-			}
+		if err := ph.app.withdrawApp(project.Spec.ClusterName, appName, appTargetNamespace); err != nil {
+			mgmtv3.ProjectConditionMonitoringEnabled.Unknown(project)
+			mgmtv3.ProjectConditionMonitoringEnabled.Message(project, err.Error())
+			return errors.Wrap(err, "failed to withdraw monitoring")
 		}
 
-		return project, nil
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to apply metric expression")
+		if err := ph.detectAppComponentsWhileUninstall(appName, appTargetNamespace, project); err != nil {
+			mgmtv3.ProjectConditionMonitoringEnabled.Unknown(project)
+			mgmtv3.ProjectConditionMonitoringEnabled.Message(project, err.Error())
+			return errors.Wrap(err, "failed to detect the uninstallation status of monitoring components")
+		}
+
+		mgmtv3.ProjectConditionMonitoringEnabled.False(project)
+		mgmtv3.ProjectConditionMonitoringEnabled.Message(project, "")
 	}
 
+	return nil
+}
+
+func (ph *projectHandler) doSync(project *mgmtv3.Project, clusterName string) error {
 	appName, appTargetNamespace := monitoring.ProjectMonitoringInfo(project.Name)
 
 	if project.Spec.EnableProjectMonitoring {
@@ -119,6 +133,29 @@ func (ph *projectHandler) doSync(project *mgmtv3.Project, clusterName string) er
 
 		mgmtv3.ProjectConditionMonitoringEnabled.False(project)
 		mgmtv3.ProjectConditionMonitoringEnabled.Message(project, "")
+	}
+
+	return nil
+}
+
+// doProjectGraphsSync creates the metric graphs per project for cluster monitoring
+func (ph *projectHandler) doProjectGraphsSync(project *mgmtv3.Project) error {
+	_, err := mgmtv3.ProjectConditionMetricExpressionDeployed.DoUntilTrue(project, func() (runtime.Object, error) {
+		projectName := fmt.Sprintf("%s:%s", project.Spec.ClusterName, project.Name)
+
+		for _, graph := range preDefinedProjectGraph {
+			newObj := graph.DeepCopy()
+			newObj.Namespace = project.Name
+			newObj.Spec.ProjectName = projectName
+			if _, err := ph.app.cattleProjectGraphClient.Create(newObj); err != nil && !apierrors.IsAlreadyExists(err) {
+				return project, err
+			}
+		}
+
+		return project, nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to apply metric expression")
 	}
 
 	return nil
